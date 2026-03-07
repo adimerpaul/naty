@@ -14,6 +14,11 @@ const routes = [
         path:'/cambiar-contrasena',
         component: () => import('pages/cambiar-contrasena/CambiarContrasena.vue'),
         meta: { requiresAuth: true }
+      },
+      {
+        path: '/clientes/:tipo(detalle|local)',
+        component: () => import('pages/clientes/Clientes.vue'),
+        meta: { requiresAuth: true }
       }
 
     ]

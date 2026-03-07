@@ -10,16 +10,16 @@
               <q-img src="logo.png" width="110px" class="q-mb-sm" ratio="1" fit="contain" />
               <br>
               <div class="text-subtitle2 text-grey-7 brand-chip">
-                <b>Reserva Tickets</b> · Compra y reserva tus entradas
+                <b>Naty Compras y Ventas</b> @ Sistema de gestion Naty
               </div>
             </q-card-section>
 
             <q-separator spaced />
 
             <q-card-section class="q-pt-none">
-              <div class="text-h6 text-bold q-mb-xs">Iniciar sesión</div>
+              <div class="text-h6 text-bold q-mb-xs">Iniciar sesion</div>
               <div class="text-body2 text-grey-7 q-mb-md">
-                Compra tus tickets y gestiona tus reservas ingresando con tus credenciales.
+                Ingresa con tu usuario y contrasena al sistema Naty.
               </div>
 
               <div class="q-mb-sm text-caption text-grey-7">Usuario</div>
@@ -92,7 +92,7 @@
               <q-separator spaced />
 
               <div class="text-caption text-grey-6">
-                © {{ year }} Reserva Tickets. Todos los derechos reservados.
+                � {{ year }} Sistema de gestion Naty. Todos los derechos reservados.
               </div>
             </q-card-section>
           </q-card>
@@ -104,7 +104,7 @@
 
 <script>
 export default {
-  name: 'LoginTickets',
+  name: 'LoginNaty',
   data () {
     return {
       username: '',
@@ -140,8 +140,8 @@ export default {
             this.$store.permissions = (user.permissions || []).map(p => p.name)
           }
 
-          // token key para tickets
-          localStorage.setItem('tokenTicket', token)
+          // token de autenticacion Naty
+          localStorage.setItem('tokenNaty', token)
           localStorage.setItem('user', JSON.stringify(user))
 
           if (this.$alert && this.$alert.success) {
@@ -242,3 +242,6 @@ export default {
   .login-card { border-radius: 14px; }
 }
 </style>
+
+
+

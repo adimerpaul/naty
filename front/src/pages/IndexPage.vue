@@ -3,9 +3,9 @@
     <!-- HEADER -->
     <div class="row items-center q-mb-md">
       <div class="col-12 col-md-7">
-        <div class="text-h5 text-weight-bold">Dashboard — Mis graderías</div>
+        <div class="text-h5 text-weight-bold">Dashboard Naty - Compras y ventas</div>
         <div class="text-caption text-grey-7">
-          Resumen de capacidad, estado y ocupación.
+          Resumen operativo de compras, ventas y capacidad.
         </div>
       </div>
       <div class="col-12 col-md-5">
@@ -87,7 +87,7 @@
       <div class="col-12 col-md-4">
         <q-card flat bordered>
           <q-card-section class="row items-center q-py-sm">
-            <div class="text-subtitle1 text-weight-bold">Estado de graderías</div>
+            <div class="text-subtitle1 text-weight-bold">Estado de operaciones</div>
             <q-space />
             <q-badge outline color="primary">{{ kpis.total }} total</q-badge>
           </q-card-section>
@@ -106,11 +106,11 @@
         </q-card>
       </div>
 
-      <!-- Capacidad por gradería -->
+      <!-- Capacidad por punto de venta -->
       <div class="col-12 col-md-8">
         <q-card flat bordered>
           <q-card-section class="row items-center q-py-sm">
-            <div class="text-subtitle1 text-weight-bold">Capacidad por gradería</div>
+            <div class="text-subtitle1 text-weight-bold">Capacidad por punto de venta</div>
             <q-space />
             <q-chip dense outline icon="bar_chart" color="primary">Top {{ topN }}</q-chip>
           </q-card-section>
@@ -344,9 +344,9 @@ export default {
     }
   },
 
-  mounted () {
-    this.load()
-  },
+  // mounted () {
+  //   this.load()
+  // },
 
   methods: {
     async load () {
@@ -361,7 +361,7 @@ export default {
         // calcula estados top automáticamente (opcional)
         await this.loadEstadosAsientos()
       } catch (e) {
-        this.$alert?.error?.(e.response?.data?.message || 'No se pudo cargar graderías')
+        this.$alert?.error?.(e.response?.data?.message || 'No se pudo cargar la informacion de Naty')
       } finally {
         this.loading = false
       }
@@ -446,3 +446,7 @@ export default {
   }
 }
 </script>
+
+
+
+

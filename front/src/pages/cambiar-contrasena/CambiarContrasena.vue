@@ -130,7 +130,7 @@ export default {
         this.$store.isLogged = false
         this.$store.user = {}
         this.$store.permissions = []
-        localStorage.removeItem('tokenSIL')
+        localStorage.removeItem('tokenNaty')
 
         this.$router.push('/login')
       } catch (e) {
@@ -142,3 +142,4 @@ export default {
   }
 }
 </script>
+

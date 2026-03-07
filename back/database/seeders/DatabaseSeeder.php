@@ -33,14 +33,16 @@ class DatabaseSeeder extends Seeder
         $permisos = [
             'Dashboard',
             'Usuarios',
-            'Graderias',
+//            'Graderias',
+            'Cliente Detalle',
+            'Cliente Local',
 //            'Reservas',
 //            'Idiomas',
 //            'Precios',
 //            'Reportes'
         ];;
         foreach ($permisos as $permiso) {
-            Permission::create(['name' => $permiso]);
+            Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
         }
         $userAdmin->givePermissionTo(Permission::all());
 //        $this->call([

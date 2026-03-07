@@ -3,18 +3,18 @@
     "home": "Home",
     "faq": "FAQ",
     "gallery": "Gallery",
-    "buy": "Buy tickets"
+    "buy": "Naty purchases and sales"
   },
   "tickets": {
-    "title": "Book tickets",
-    "subtitle": "Stripe Checkout test with adults/kids",
+    "title": "Naty management system",
+    "subtitle": "Chicha purchases and sales flow",
     "total": "Total",
     "euQuestion": "Are you an EU citizen?",
     "yes": "Yes",
     "no": "No",
     "date": "Date",
     "time": "Time",
-    "entries": "Tickets",
+    "entries": "Operations",
     "adult": "Adult",
     "adultHint": "17+ years",
     "kid": "Child",
@@ -33,3 +33,6 @@
     "subtitle": "No charge was made."
   }
 }
+
+
+

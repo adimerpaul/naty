@@ -3,18 +3,18 @@
     "home": "Inicio",
     "faq": "Preguntas frecuentes",
     "gallery": "Galería",
-    "buy": "Comprar entradas"
+    "buy": "Compras y ventas Naty"
   },
   "tickets": {
-    "title": "Reservar entradas",
-    "subtitle": "Prueba Stripe Checkout con adultos/niños",
+    "title": "Sistema de gestion Naty",
+    "subtitle": "Registro de compras y ventas de chicha",
     "total": "Total",
     "euQuestion": "¿Eres ciudadano de la Unión Europea?",
     "yes": "Sí",
     "no": "No",
     "date": "Fecha",
     "time": "Hora",
-    "entries": "Entradas",
+    "entries": "Operaciones",
     "adult": "Adulto",
     "adultHint": "+17 años",
     "kid": "Niño",
@@ -33,3 +33,6 @@
     "subtitle": "No se realizó ningún cobro."
   }
 }
+
+
+

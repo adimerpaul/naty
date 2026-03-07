@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-layout view="lHh Lpr lFf">
     <!-- HEADER -->
     <q-header class="bg-white text-black" bordered>
@@ -14,7 +14,7 @@
 
         <div class="row items-center q-gutter-sm">
           <div class="text-subtitle1 text-weight-medium" style="line-height: 0.9">
-            Dashboard de Tickets <br>
+            Sistema de Gestion Naty <br>
             <q-badge color="warning" text-color="black" v-if="roleText" class="text-bold">
               {{ roleText }}
             </q-badge>
@@ -80,7 +80,7 @@
             </q-item>
 
             <q-separator />
-<!--            cambiar contrseña-->
+<!--            cambiar contrseÃ±a-->
             <q-item clickable v-close-popup @click="$router.push('/cambiar-contrasena')">
               <q-item-section avatar>
                 <q-icon name="vpn_key" />
@@ -117,12 +117,12 @@
           <q-avatar size="64px" class="q-mb-sm bg-white" rounded>
             <q-img src="/logo.png" width="90px" />
           </q-avatar>
-          <div class="text-weight-bold text-white">TICKETS</div>
-          <div class="text-caption text-white">Sistema de Gestión</div>
+          <div class="text-weight-bold text-white">Naty</div>
+          <div class="text-caption text-white">Compras y Ventas</div>
         </q-item-label>
 
         <q-item-label header class="q-px-md text-grey-3 q-mt-sm">
-          Módulos del Sistema
+          Modulos del Sistema Naty
         </q-item-label>
 
         <!-- DASHBOARD -->
@@ -163,11 +163,47 @@
           </q-item-section>
         </q-item>
 
+        <q-item
+          dense
+          to="/clientes/detalle"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Cliente Detalle') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="person_outline" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Cliente detalle</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <q-item
+          dense
+          to="/clientes/local"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Cliente Local') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="storefront" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Cliente local</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <!-- ========================= -->
-        <!-- GRADERÍAS (NUEVO MÓDULO) -->
+        <!-- GRADERÃAS (NUEVO MÃ“DULO) -->
         <!-- ========================= -->
 
-        <!-- MIS GRADERÍAS -->
+        <!-- MIS GRADERÃAS -->
         <q-item
           dense
           to="/mis-graderias"
@@ -182,11 +218,11 @@
             <q-icon name="stadium" class="text-white" />
           </q-item-section>
           <q-item-section>
-            <q-item-label class="text-white">Mis graderías</q-item-label>
+            <q-item-label class="text-white">Compras y ventas</q-item-label>
           </q-item-section>
         </q-item>
 
-        <!-- CREAR GRADERÍA -->
+        <!-- CREAR GRADERÃA -->
         <q-item
           dense
           to="/mis-graderias/nueva"
@@ -201,10 +237,10 @@
             <q-icon name="add_box" class="text-white" />
           </q-item-section>
           <q-item-section>
-            <q-item-label class="text-white">Nueva gradería</q-item-label>
+            <q-item-label class="text-white">Nueva operacion</q-item-label>
           </q-item-section>
         </q-item>
-<!--        cambiar contraseña-->
+<!--        cambiar contraseÃ±a-->
         <q-item
           dense
           to="/cambiar-contrasena"
@@ -225,10 +261,10 @@
         <!-- FOOTER -->
         <div class="q-pa-md">
           <div class="text-white-7 text-caption">
-            Tickets v{{ $version }}
+            Naty v{{ $version }}
           </div>
           <div class="text-white-7 text-caption">
-            © {{ new Date().getFullYear() }} Sistema de Tickets
+            @ {{ new Date().getFullYear() }} Sistema de Gestion Naty
           </div>
         </div>
 
@@ -262,6 +298,10 @@ export default {
     // this.fetchMenuEventos()
   },
   computed: {
+    isAdmin () {
+      const role = this.$store && this.$store.user ? this.$store.user.role : ''
+      return role === 'Administrador'
+    },
     roleText () {
       const role = this.$store && this.$store.user ? this.$store.user.role : ''
       if (!role) return ''
@@ -287,21 +327,21 @@ export default {
         : false
     },
     logout () {
-      this.$alert.dialog('¿Desea salir del sistema?')
+      this.$alert.dialog('Â¿Desea salir del sistema?')
         .onOk(() => {
           this.$axios.post('/logout')
             .then(() => {
               this.$store.isLogged = false
               this.$store.user = {}
               this.$store.permissions = []
-              localStorage.removeItem('tokenSIL')
+              localStorage.removeItem('tokenNaty')
               this.$router.push('/login')
             })
             .catch(() => {
               this.$store.isLogged = false
               this.$store.user = {}
               this.$store.permissions = []
-              localStorage.removeItem('tokenSIL')
+              localStorage.removeItem('tokenNaty')
               this.$router.push('/login')
             })
         })
@@ -322,3 +362,7 @@ export default {
   border-radius: 10px;
 }
 </style>
+
+
+
+

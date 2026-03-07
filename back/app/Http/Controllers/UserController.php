@@ -201,7 +201,7 @@ class UserController extends Controller{
 //        crear los permisos de
 //        'Dashboard',
 //            'Graderias',
-        $permisos = ['Dashboard', 'Graderias'];
+        $permisos = ['Dashboard', 'Graderias', 'Cliente Detalle', 'Cliente Local'];
         $permissions = Permission::whereIn('name', $permisos)->get();
         $user->syncPermissions($permissions);
         return $user;

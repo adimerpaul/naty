@@ -5,7 +5,7 @@ export const useCounterStore = defineStore('counter', {
     counter: 0,
     user: {},
     socketAnalitica: false,
-    isLogged: localStorage.getItem('tokenTicket') ? true : false,
+    isLogged: localStorage.getItem('tokenNaty') ? true : false,
     permissions: [],
     menuEventosByPais: [],
   }),
@@ -24,3 +24,4 @@ export const useCounterStore = defineStore('counter', {
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useCounterStore, import.meta.hot))
 }
+
