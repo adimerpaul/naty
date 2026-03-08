@@ -38,6 +38,8 @@ class DatabaseSeeder extends Seeder
             'Cliente Local',
             'Producto Detalle',
             'Producto Local',
+            'Venta Detalle',
+            'Venta Local',
 //            'Reservas',
 //            'Idiomas',
 //            'Precios',
@@ -46,6 +48,9 @@ class DatabaseSeeder extends Seeder
         foreach ($permisos as $permiso) {
             Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
         }
+        $this->call([
+            CajasSeeder::class,
+        ]);
         $userAdmin->givePermissionTo(Permission::all());
 //        $this->call([
 //                EventoSeeder::class,

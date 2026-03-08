@@ -2,8 +2,10 @@
 
 //use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\VentaController;
 use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
 
@@ -41,5 +43,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/productos', [ProductoController::class, 'store']);
     Route::put('/productos/{producto}', [ProductoController::class, 'update']);
     Route::delete('/productos/{producto}', [ProductoController::class, 'destroy']);
+
+    Route::get('/cajas', [CajaController::class, 'index']);
+
+    Route::get('/ventas', [VentaController::class, 'index']);
+    Route::get('/ventas/{venta}', [VentaController::class, 'show']);
+    Route::get('/ventas/{venta}/pdf', [VentaController::class, 'pdf']);
+    Route::post('/ventas', [VentaController::class, 'store']);
+    Route::put('/ventas/{venta}', [VentaController::class, 'update']);
+    Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular']);
+    Route::post('/ventas/{venta}/pagos/{pago}/pagar', [VentaController::class, 'pagarCuota']);
 
 });

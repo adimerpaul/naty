@@ -958,4 +958,108 @@ Oruro</div>
     }
   }
 
+  static ensureMount() {
+    let mount = document.getElementById('myElement');
+    if (!mount) {
+      mount = document.createElement('div');
+      mount.id = 'myElement';
+      mount.style.display = 'none';
+      document.body.appendChild(mount);
+    }
+    return mount;
+  }
+
+  static printTicketHtml(html) {
+    const mount = this.ensureMount();
+    mount.innerHTML = html;
+    const d = new Printd();
+    d.print(mount);
+  }
+
+  static fichaDespacho(venta) {
+    const fecha = new Date(venta.created_at || Date.now());
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+    const yy = fecha.getFullYear();
+    const fechaTxt = `${dd}/${mm}/${yy}`;
+    const detalles = venta.detalles || [];
+    const rows = detalles.map(d => `
+      <tr>
+        <td>${Number(d.cantidad || 0)}</td>
+        <td>${d.producto_nombre || ''}</td>
+        <td style="text-align:right">${Number(d.subtotal || 0).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
+        <div style="text-align:center;border-bottom:1px solid #222;padding-bottom:4px;margin-bottom:8px;">
+          <div style="font-size:30px;font-weight:bold;">Ficha de Despacho</div>
+          <div style="font-size:30px">${fechaTxt}</div>
+        </div>
+        <div><b>Nro :</b> ${venta.id}</div>
+        <div><b>Local:</b> ${venta.cliente_direccion || '-'}</div>
+        <div><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
+        <div><b>Usuario:</b> ${venta.user?.name || venta.user?.username || '-'}</div>
+        <hr>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr><th style="text-align:left">Cant</th><th style="text-align:left">Prod</th><th style="text-align:right">Subt</th></tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="3">Sin detalle</td></tr>'}</tbody>
+        </table>
+        <div style="margin-top:10px;font-size:16px;"><b>TOTAL: ${Number(venta.total || 0).toFixed(2)} Bs</b></div>
+        <div style="margin-top:6px;">Observacion: ${venta.observacion || ''}</div>
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
+  static hojaRuta(venta) {
+    const fecha = new Date(venta.created_at || Date.now());
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+    const yy = fecha.getFullYear();
+    const hora = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}:${String(fecha.getSeconds()).padStart(2, '0')}`;
+    const fechaTxt = `${dd}/${mm}/${yy}`;
+    const detalles = venta.detalles || [];
+    const rows = detalles.map(d => `
+      <tr>
+        <td>${Number(d.cantidad || 0)}</td>
+        <td>${d.producto_nombre || ''}</td>
+      </tr>
+    `).join('');
+
+    const metodo = (venta.pagos || []).find(p => p.estado === 'PAGADO')?.metodo || '-';
+    const html = `
+      <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
+        <div style="text-align:center;">
+          <div>H/R</div>
+          <div>Nro ${venta.id}</div>
+        </div>
+        <table style="width:100%;margin-top:6px;">
+          <tr><td>Fecha:</td><td><b>${fechaTxt}</b></td></tr>
+          <tr><td>Fecha entrega:</td><td><b>${fechaTxt}</b></td></tr>
+        </table>
+        <hr>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left">CANTIDAD</th><th style="text-align:left">PRODUCTO</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="2">Sin detalle</td></tr>'}</tbody>
+        </table>
+        <div style="margin-top:8px;"><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
+        <div><b>Tel:</b> ${venta.cliente_telefono || '-'}</div>
+        <div><b>Direccion:</b> ${venta.cliente_direccion || '-'}</div>
+        <div><b>Hora:</b> ${hora}</div>
+        <hr>
+        <div><b>Observacion:</b> ${venta.observacion || ''}</div>
+        <div><b>Total:</b> ${Number(venta.total || 0).toFixed(2)}</div>
+        <div><b>A cuenta:</b> 0</div>
+        <div><b>Saldo:</b> ${Number(venta.total || 0).toFixed(2)}</div>
+        <div><b>Metodo:</b> ${metodo}</div>
+        <div><b>Usuario:</b> ${venta.user?.name || venta.user?.username || '-'}</div>
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
 }
