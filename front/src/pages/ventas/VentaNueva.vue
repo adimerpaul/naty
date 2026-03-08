@@ -219,7 +219,7 @@
     </q-dialog>
 
     <q-dialog v-model="dialogClienteNuevo">
-      <q-card style="width: 460px; max-width: 96vw;">
+      <q-card style="width: 760px; max-width: 96vw;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Nuevo cliente</div>
           <q-space />
@@ -227,13 +227,87 @@
         </q-card-section>
         <q-card-section>
           <q-form @submit.prevent="crearClienteRapido">
-            <q-input v-model="clienteNew.nombre" dense outlined label="Nombre" :rules="[req]" class="q-mb-sm" />
-            <q-input v-model="clienteNew.ci" dense outlined label="CI" class="q-mb-sm" />
-            <q-input v-model="clienteNew.telefono" dense outlined label="Telefono" class="q-mb-sm" />
-            <q-input v-model="clienteNew.direccion" dense outlined label="Direccion" class="q-mb-sm" />
-            <q-input v-model="clienteNew.observacion" dense outlined label="Observacion" class="q-mb-sm" />
+            <div class="row q-col-gutter-sm">
+              <div class="col-12">
+                <q-input :model-value="tipoVenta === 'local' ? 'Cliente local' : 'Cliente detalle'" dense outlined readonly />
+              </div>
+              <div class="col-12 col-md-8">
+                <q-input v-model="clienteNew.titular" dense outlined label="Titular" :rules="[req]" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="clienteNew.ci" dense outlined label="CI" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="clienteNew.telefono" dense outlined label="Telefono" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="clienteNew.fechanac" dense outlined type="date" label="Fecha nacimiento" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="clienteNew.nit" dense outlined label="NIT" />
+              </div>
+              <div class="col-12">
+                <q-input v-model="clienteNew.direccion" dense outlined label="Direccion" />
+              </div>
+
+              <template v-if="tipoVenta === 'local'">
+                <div class="col-12 col-md-6">
+                  <q-input v-model="clienteNew.local" dense outlined label="Local" :rules="[req]" />
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-select
+                    v-model="clienteNew.tipo"
+                    dense
+                    outlined
+                    emit-value
+                    map-options
+                    label="Tipo"
+                    :options="[
+                      { label: 'Propietario', value: 'PROPIETARIO' },
+                      { label: 'Inquilino', value: 'INQUILINO' }
+                    ]"
+                  />
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-select
+                    v-model="clienteNew.legalidad"
+                    dense
+                    outlined
+                    emit-value
+                    map-options
+                    label="Legalidad"
+                    :options="[
+                      { label: 'Con licencia', value: 'CON LICENCIA' },
+                      { label: 'Sin licencia', value: 'SIN LICENCIA' }
+                    ]"
+                  />
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-select
+                    v-model="clienteNew.categoria"
+                    dense
+                    outlined
+                    emit-value
+                    map-options
+                    label="Categoria"
+                    :options="[
+                      { label: 'Simplificado', value: 'SIMPLIFICADO' },
+                      { label: 'General', value: 'GENERAL' },
+                      { label: 'Sin NIT', value: 'SIN NIT' }
+                    ]"
+                  />
+                </div>
+                <div class="col-12">
+                  <q-input v-model="clienteNew.razon" dense outlined label="Razon social" />
+                </div>
+              </template>
+
+              <div class="col-12">
+                <q-input v-model="clienteNew.observacion" dense outlined label="Observacion" />
+              </div>
+            </div>
             <div class="row justify-end q-gutter-sm">
-              <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
+              <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup @click="resetClienteNew" />
               <q-btn no-caps color="primary" label="Crear cliente" type="submit" :loading="loadingClienteNew" />
             </div>
           </q-form>
@@ -405,10 +479,17 @@ export default {
         observacion: ''
       },
       clienteNew: {
-        nombre: '',
+        local: '',
+        titular: '',
+        tipo: 'PROPIETARIO',
         ci: '',
         telefono: '',
         direccion: '',
+        fechanac: '',
+        legalidad: 'CON LICENCIA',
+        categoria: 'SIMPLIFICADO',
+        razon: '',
+        nit: '',
         observacion: ''
       },
       garantia: {
@@ -517,19 +598,45 @@ export default {
     limpiarCarrito () {
       this.carrito = []
     },
+    resetClienteNew () {
+      this.clienteNew = {
+        local: '',
+        titular: '',
+        tipo: 'PROPIETARIO',
+        ci: '',
+        telefono: '',
+        direccion: '',
+        fechanac: '',
+        legalidad: 'CON LICENCIA',
+        categoria: 'SIMPLIFICADO',
+        razon: '',
+        nit: '',
+        observacion: ''
+      }
+    },
     async crearClienteRapido () {
       this.loadingClienteNew = true
       try {
-        const res = await this.$axios.post('clientes', {
+        const payload = {
           ...this.clienteNew,
           tipo_cliente: this.tipoVenta,
           estado: true
+        }
+        if (this.tipoVenta === 'detalle') {
+          payload.local = null
+          payload.tipo = null
+          payload.legalidad = null
+          payload.categoria = null
+          payload.razon = null
+        }
+        const res = await this.$axios.post('clientes', {
+          ...payload
         })
         this.clientesBackup.unshift(res.data)
         this.clientes = this.clientesBackup
         this.form.cliente_id = res.data.id
         this.dialogClienteNuevo = false
-        this.clienteNew = { nombre: '', ci: '', telefono: '', direccion: '', observacion: '' }
+        this.resetClienteNew()
         this.$alert.success('Cliente creado')
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo crear cliente')
