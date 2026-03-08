@@ -16,6 +16,7 @@ class Cliente extends Model
         'ci',
         'telefono',
         'direccion',
+        'fechanac',
         'observacion',
         'lat',
         'lng',
@@ -25,9 +26,10 @@ class Cliente extends Model
     protected function casts(): array
     {
         return [
-            'estado' => 'boolean',
-            'lat' => 'decimal:7',
-            'lng' => 'decimal:7',
+//            'estado' => 'boolean',
+//            'lat' => 'decimal:7',
+//            'lng' => 'decimal:7',
+//            'fechanac' => 'date',
         ];
     }
 }

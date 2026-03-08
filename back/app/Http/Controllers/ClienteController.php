@@ -29,6 +29,7 @@ class ClienteController extends Controller
             'ci' => 'nullable|string|max:255|unique:clientes,ci',
             'telefono' => 'nullable|string|max:255',
             'direccion' => 'nullable|string|max:255',
+            'fechanac' => 'nullable|date',
             'observacion' => 'nullable|string|max:2000',
             'lat' => 'nullable|numeric|between:-90,90',
             'lng' => 'nullable|numeric|between:-180,180',
@@ -46,16 +47,23 @@ class ClienteController extends Controller
             'ci' => [
                 'nullable',
                 'string',
-                'max:255',
-                Rule::unique('clientes', 'ci')->ignore($cliente->id),
+                'max:255'
             ],
             'telefono' => 'nullable|string|max:255',
             'direccion' => 'nullable|string|max:255',
+            'fechanac' => 'nullable|date',
             'observacion' => 'nullable|string|max:2000',
             'lat' => 'nullable|numeric|between:-90,90',
             'lng' => 'nullable|numeric|between:-180,180',
             'estado' => 'nullable|boolean',
         ]);
+//        verifica el ci
+        $existeCi = Cliente::where('ci', $validated['ci'] ?? null)
+            ->where('id', '!=', $cliente->id)
+            ->exists();
+        if ($existeCi) {
+            return response()->json(['message' => 'El CI ya está registrado para otro cliente'], 422);
+        }
 
         $cliente->update($validated);
 

@@ -12,6 +12,7 @@ use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
+use App\Http\Controllers\CumpleaniosController;
 
 Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
 Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
@@ -60,6 +61,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/personal-pagos', [PersonalPagoController::class, 'store']);
     Route::post('/personal-pagos/{personalPago}/anular', [PersonalPagoController::class, 'anular']);
     Route::get('/personal-pagos/{personalPago}/boleta-pdf', [PersonalPagoController::class, 'boletaPdf']);
+    Route::get('/cumpleanios', [CumpleaniosController::class, 'index']);
+    Route::get('/cumpleanios/{origen}/{id}/historial', [CumpleaniosController::class, 'historial']);
 
     Route::get('/inventarios', [InventarioController::class, 'index']);
     Route::post('/inventarios', [InventarioController::class, 'store']);
