@@ -156,7 +156,7 @@
     </q-table>
 
     <q-dialog v-model="dialogCliente" persistent>
-      <q-card style="width: 520px; max-width: 96vw;">
+      <q-card style="width: 860px; max-width: 98vw;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">
             {{ cliente.id ? 'Editar cliente' : 'Nuevo cliente' }}
@@ -167,18 +167,80 @@
 
         <q-card-section class="q-pt-sm">
           <q-form @submit.prevent="cliente.id ? clientePut() : clientePost()">
-            <q-input v-model="cliente.nombre" label="Nombre" dense outlined :rules="[req]" class="q-mb-sm" />
-            <q-input v-model="cliente.ci" label="CI" dense outlined class="q-mb-sm" />
-            <q-input v-model="cliente.telefono" label="Telefono" dense outlined class="q-mb-sm" />
-            <q-input v-model="cliente.direccion" label="Direccion" dense outlined class="q-mb-sm" />
-            <q-input v-model="cliente.observacion" type="textarea" autogrow label="Observacion" dense outlined class="q-mb-sm" />
-            <cliente-mapa
-              class="q-mb-md"
-              :lat="cliente.lat"
-              :lng="cliente.lng"
-              @update:lat="cliente.lat = $event"
-              @update:lng="cliente.lng = $event"
-            />
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-4" v-if="tipoCliente === 'local'">
+                <q-input v-model="cliente.local" label="Local" dense outlined :rules="[req]" />
+              </div>
+              <div :class="tipoCliente === 'local' ? 'col-12 col-md-8' : 'col-12'">
+                <q-input v-model="cliente.titular" label="Titular" dense outlined :rules="[req]" />
+              </div>
+              <div class="col-12 col-md-4" v-if="tipoCliente === 'local'">
+                <q-select
+                  v-model="cliente.tipo"
+                  :options="tipoLocalOptions"
+                  label="Tipo"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :rules="[req]"
+                />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="cliente.ci" label="CI" dense outlined />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model="cliente.telefono" label="Telefono" dense outlined />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input v-model="cliente.direccion" label="Direccion" dense outlined />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input v-model="cliente.fechanac" type="date" label="Fecha nac." dense outlined />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input v-model="cliente.nit" label="NIT" dense outlined />
+              </div>
+              <div class="col-12 col-md-4" v-if="tipoCliente === 'local'">
+                <q-select
+                  v-model="cliente.legalidad"
+                  :options="legalidadOptions"
+                  label="Legalidad"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :rules="[req]"
+                />
+              </div>
+              <div class="col-12 col-md-4" v-if="tipoCliente === 'local'">
+                <q-select
+                  v-model="cliente.categoria"
+                  :options="categoriaOptions"
+                  label="Categoria"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :rules="[req]"
+                />
+              </div>
+              <div class="col-12 col-md-4" v-if="tipoCliente === 'local'">
+                <q-input v-model="cliente.razon" label="Razon social" dense outlined />
+              </div>
+              <div class="col-12">
+                <q-input v-model="cliente.observacion" type="textarea" autogrow label="Observacion" dense outlined />
+              </div>
+              <div class="col-12">
+                <cliente-mapa
+                  class="q-mb-md"
+                  :lat="cliente.lat"
+                  :lng="cliente.lng"
+                  @update:lat="cliente.lat = $event"
+                  @update:lng="cliente.lng = $event"
+                />
+              </div>
+            </div>
 
             <q-toggle v-model="cliente.estado" label="Activo" color="positive" class="q-mb-md" />
 
@@ -272,9 +334,16 @@ export default {
       columns: [
         { name: 'actions', label: 'Acciones', align: 'left' },
         { name: 'nombre', label: 'Nombre', align: 'left', field: 'nombre' },
+        { name: 'local', label: 'Local', align: 'left', field: 'local' },
+        { name: 'titular', label: 'Titular', align: 'left', field: 'titular' },
+        { name: 'tipo', label: 'Tipo', align: 'left', field: 'tipo' },
         { name: 'ci', label: 'CI', align: 'left', field: 'ci' },
         { name: 'telefono', label: 'Telefono', align: 'left', field: 'telefono' },
         { name: 'direccion', label: 'Direccion', align: 'left', field: 'direccion' },
+        { name: 'fechanac', label: 'F. Nac.', align: 'left', field: 'fechanac' },
+        { name: 'legalidad', label: 'Legalidad', align: 'left', field: 'legalidad' },
+        { name: 'categoria', label: 'Categoria', align: 'left', field: 'categoria' },
+        { name: 'nit', label: 'NIT', align: 'left', field: 'nit' },
         { name: 'lat', label: 'Lat', align: 'left', field: 'lat' },
         { name: 'lng', label: 'Lng', align: 'left', field: 'lng' },
         { name: 'estado', label: 'Estado', align: 'left', field: 'estado' }
@@ -294,6 +363,19 @@ export default {
         { name: 'metodo', label: 'Metodo', field: 'metodo', align: 'left' },
         { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
         { name: 'fecha_pago', label: 'F. Pago', field: 'fecha_pago', align: 'left' }
+      ],
+      tipoLocalOptions: [
+        { label: 'Propietario', value: 'PROPIETARIO' },
+        { label: 'Inquilino', value: 'INQUILINO' }
+      ],
+      legalidadOptions: [
+        { label: 'Con licencia', value: 'CON LICENCIA' },
+        { label: 'Sin licencia', value: 'SIN LICENCIA' }
+      ],
+      categoriaOptions: [
+        { label: 'Simplificado', value: 'SIMPLIFICADO' },
+        { label: 'General', value: 'GENERAL' },
+        { label: 'Sin NIT', value: 'SIN NIT' }
       ]
     }
   },
@@ -350,9 +432,17 @@ export default {
     clienteNuevo () {
       this.cliente = {
         nombre: '',
+        local: '',
+        titular: '',
+        tipo: '',
         ci: '',
         telefono: '',
         direccion: '',
+        fechanac: null,
+        legalidad: '',
+        categoria: '',
+        razon: '',
+        nit: '',
         observacion: '',
         lat: null,
         lng: null,
@@ -380,7 +470,7 @@ export default {
 
     clientePost () {
       this.loading = true
-      this.$axios.post('clientes', { ...this.cliente, tipo_cliente: this.tipoCliente })
+      this.$axios.post('clientes', this.payloadCliente())
         .then(() => {
           this.dialogCliente = false
           this.$alert.success('Cliente creado')
@@ -392,7 +482,7 @@ export default {
 
     clientePut () {
       this.loading = true
-      this.$axios.put(`clientes/${this.cliente.id}`, { ...this.cliente, tipo_cliente: this.tipoCliente })
+      this.$axios.put(`clientes/${this.cliente.id}`, this.payloadCliente())
         .then(() => {
           this.dialogCliente = false
           this.$alert.success('Cliente actualizado')
@@ -431,15 +521,23 @@ export default {
     },
 
     exportExcel () {
-      const headers = ['ID', 'Nombre', 'Tipo', 'CI', 'Telefono', 'Direccion', 'Observacion', 'Lat', 'Lng', 'Estado']
+      const headers = ['ID', 'Nombre', 'Local', 'Titular', 'Tipo', 'Tipo cliente', 'CI', 'Telefono', 'Direccion', 'Fecha nac.', 'Legalidad', 'Categoria', 'NIT', 'Razon', 'Observacion', 'Lat', 'Lng', 'Estado']
       const trs = this.clientes.map(r => `
         <tr>
           <td>${r.id ?? ''}</td>
           <td>${r.nombre ?? ''}</td>
+          <td>${r.local ?? ''}</td>
+          <td>${r.titular ?? ''}</td>
+          <td>${r.tipo ?? ''}</td>
           <td>${r.tipo_cliente ?? ''}</td>
           <td>${r.ci ?? ''}</td>
           <td>${r.telefono ?? ''}</td>
           <td>${r.direccion ?? ''}</td>
+          <td>${r.fechanac ?? ''}</td>
+          <td>${r.legalidad ?? ''}</td>
+          <td>${r.categoria ?? ''}</td>
+          <td>${r.nit ?? ''}</td>
+          <td>${r.razon ?? ''}</td>
           <td>${r.observacion ?? ''}</td>
           <td>${r.lat ?? ''}</td>
           <td>${r.lng ?? ''}</td>
@@ -485,6 +583,15 @@ export default {
       } finally {
         this.loadingPdf = false
       }
+    },
+    payloadCliente () {
+      const base = { ...this.cliente, tipo_cliente: this.tipoCliente }
+      if (this.tipoCliente === 'detalle') {
+        base.nombre = base.titular || base.nombre || ''
+      } else {
+        base.nombre = base.local || base.nombre || ''
+      }
+      return base
     }
   }
 }

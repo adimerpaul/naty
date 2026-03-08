@@ -196,6 +196,23 @@
             <q-item-label class="text-white">Cajas</q-item-label>
           </q-item-section>
         </q-item>
+        <q-item
+          dense
+          to="/cumpleanios"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Cumpleaños') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="cake" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Cumpleaños</q-item-label>
+          </q-item-section>
+        </q-item>
         <q-expansion-item
           dense
           icon="badge"

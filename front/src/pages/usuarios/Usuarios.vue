@@ -61,6 +61,11 @@
                 <q-item-section><q-item-label>Cambiar contraseña</q-item-label></q-item-section>
               </q-item>
 
+              <q-item clickable v-close-popup @click="revokeAccess(props.row)">
+                <q-item-section avatar><q-icon name="logout" color="negative" /></q-item-section>
+                <q-item-section><q-item-label>Cerrar todos los accesos</q-item-label></q-item-section>
+              </q-item>
+
               <q-item clickable v-close-popup @click="cambiarAvatar(props.row)">
                 <q-item-section avatar><q-icon name="image" /></q-item-section>
                 <q-item-section><q-item-label>Cambiar avatar</q-item-label></q-item-section>
@@ -156,6 +161,15 @@
             <q-input v-model="user.name" label="Nombre" dense outlined :rules="[req]" class="q-mb-sm" />
             <q-input v-model="user.username" label="Usuario" dense outlined :rules="[req]" class="q-mb-sm" />
             <q-input v-model="user.email" label="Email" dense outlined type="email" class="q-mb-sm" />
+            <q-select
+              v-model="user.estado"
+              label="Estado"
+              dense
+              outlined
+              :options="['ACTIVO', 'INACTIVO']"
+              class="q-mb-sm"
+            />
+            <q-input v-model="user.fechalimite" label="Fecha limite" dense outlined type="date" class="q-mb-sm" />
             <q-input v-model="user.telefono_contacto_1" label="Teléfono de contacto 1" dense outlined class="q-mb-sm" />
             <q-input v-model="user.telefono_contacto_2" label="Teléfono de contacto 2" dense outlined class="q-mb-sm" />
 
@@ -281,6 +295,8 @@ export default {
         { name: 'name', label: 'Nombre', align: 'left', field: 'name' },
         { name: 'username', label: 'Usuario', align: 'left', field: 'username' },
         { name: 'email', label: 'Email', align: 'left', field: 'email' },
+        { name: 'estado', label: 'Estado', align: 'left', field: 'estado' },
+        { name: 'fechalimite', label: 'Fecha limite', align: 'left', field: 'fechalimite' },
         { name: 'telefono_contacto_1', label: 'Contacto 1', align: 'left', field: 'telefono_contacto_1' },
         { name: 'telefono_contacto_2', label: 'Contacto 2', align: 'left', field: 'telefono_contacto_2' },
         { name: 'role', label: 'Rol', align: 'left', field: 'role' },
@@ -329,6 +345,8 @@ export default {
         name: '',
         username: '',
         email: '',
+        estado: 'ACTIVO',
+        fechalimite: '',
         telefono_contacto_1: '',
         telefono_contacto_2: '',
         password: '',
@@ -340,6 +358,8 @@ export default {
     userEdit (u) {
       this.user = {
         ...u,
+        estado: u.estado || 'ACTIVO',
+        fechalimite: u.fechalimite || '',
         telefono_contacto_1: u.telefono_contacto_1 || '',
         telefono_contacto_2: u.telefono_contacto_2 || ''
       }
@@ -403,6 +423,19 @@ export default {
               this.usersGet()
             })
             .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo actualizar'))
+            .finally(() => { this.loading = false })
+        })
+    },
+
+    revokeAccess (u) {
+      this.$alert.dialog('Desea cerrar todos los accesos de este usuario?')
+        .onOk(() => {
+          this.loading = true
+          this.$axios.post(`users/${u.id}/revoke-access`)
+            .then(() => {
+              this.$alert.success('Todos los accesos fueron cerrados')
+            })
+            .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cerrar accesos'))
             .finally(() => { this.loading = false })
         })
     },
