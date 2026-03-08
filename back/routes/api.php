@@ -64,6 +64,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/prestamos/{prestamo}/retornar', [PrestamoController::class, 'retornar']);
 
     Route::get('/cajas', [CajaController::class, 'index']);
+    Route::get('/cajas/resumen', [CajaController::class, 'resumen']);
+    Route::get('/cajas/{caja}/movimientos', [CajaController::class, 'movimientos']);
+    Route::post('/cajas/movimientos', [CajaController::class, 'registrarMovimiento']);
 
     Route::get('/ventas', [VentaController::class, 'index']);
     Route::get('/ventas/deudas/detalle', [VentaController::class, 'deudasDetalle']);

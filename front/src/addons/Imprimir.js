@@ -1076,4 +1076,32 @@ Oruro</div>
     this.printTicketHtml(html);
   }
 
+  static movimientoCaja(movimiento, cajaNombre = 'Caja') {
+    const fecha = new Date(movimiento.created_at || Date.now());
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+    const yy = fecha.getFullYear();
+    const hh = String(fecha.getHours()).padStart(2, '0');
+    const mi = String(fecha.getMinutes()).padStart(2, '0');
+    const ss = String(fecha.getSeconds()).padStart(2, '0');
+
+    const html = `
+      <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
+        <div style="text-align:center;border-bottom:1px solid #222;padding-bottom:4px;margin-bottom:8px;">
+          <div style="font-size:24px;font-weight:bold;">Comprobante de caja</div>
+          <div style="font-size:16px">${dd}/${mm}/${yy} ${hh}:${mi}:${ss}</div>
+        </div>
+        <div><b>ID:</b> ${movimiento.id}</div>
+        <div><b>Caja:</b> ${cajaNombre}</div>
+        <div><b>Tipo:</b> ${movimiento.tipo_movimiento || '-'}</div>
+        <div><b>Origen:</b> ${movimiento.tipo_venta || '-'}</div>
+        <div><b>Usuario:</b> ${movimiento.usuario || '-'}</div>
+        <hr>
+        <div style="font-size:18px;"><b>Monto: ${Number(movimiento.monto_real || 0).toFixed(2)} Bs</b></div>
+        <div style="margin-top:8px;"><b>Observacion:</b> ${movimiento.observacion || ''}</div>
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
 }

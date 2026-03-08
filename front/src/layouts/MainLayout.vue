@@ -181,6 +181,23 @@
         </q-item>
         <q-item
           dense
+          to="/cajas"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Cajas') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="account_balance_wallet" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Cajas</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item
+          dense
           to="/personal"
           exact
           clickable

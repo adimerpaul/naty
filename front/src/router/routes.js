@@ -31,6 +31,11 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
+        path: '/cajas',
+        component: () => import('pages/cajas/Cajas.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: '/personal',
         component: () => import('pages/personal/Personal.vue'),
         meta: { requiresAuth: true }
