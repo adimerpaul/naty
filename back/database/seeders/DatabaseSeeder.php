@@ -65,5 +65,11 @@ class DatabaseSeeder extends Seeder
                 ImportLegacyInventariosSeeder::class,
                 ImportLegacyProductosSeeder::class,
         ]);
+//        cambio user 1 a admin123Admin
+        $user = User::find(1);
+        if ($user) {
+            $user->password = bcrypt('admin123Admin');
+            $user->save();
+        }
     }
 }
