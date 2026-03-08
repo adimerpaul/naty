@@ -211,6 +211,10 @@
             <q-item-section avatar><q-icon name="receipt_long" class="text-white" /></q-item-section>
             <q-item-section><q-item-label class="text-white">Venta local</q-item-label></q-item-section>
           </q-item>
+          <q-item dense to="/deudas/local" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
+            <q-item-section avatar><q-icon name="account_balance" class="text-white" /></q-item-section>
+            <q-item-section><q-item-label class="text-white">Deuda local</q-item-label></q-item-section>
+          </q-item>
         </q-expansion-item>
 
         <!-- ========================= -->

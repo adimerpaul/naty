@@ -23,6 +23,7 @@ class Venta extends Model
         'cliente_direccion',
         'total',
         'observacion',
+        'deuda_oculta',
     ];
 
     public function detalles()

@@ -31,7 +31,7 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
-        path: '/deudas/detalle',
+        path: '/deudas/:tipo(detalle|local)',
         component: () => import('pages/ventas/DeudasDetalle.vue'),
         meta: { requiresAuth: true }
       },

@@ -133,6 +133,14 @@
                   <q-item-label>Editar</q-item-label>
                 </q-item-section>
               </q-item>
+              <q-item clickable v-close-popup @click="verHistorial(props.row)">
+                <q-item-section avatar>
+                  <q-icon name="history" color="primary" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Historial</q-item-label>
+                </q-item-section>
+              </q-item>
               <q-item clickable v-close-popup @click="clienteEliminar(props.row.id)">
                 <q-item-section avatar>
                   <q-icon name="delete" color="negative" />
@@ -182,6 +190,57 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="dialogHistorial">
+      <q-card style="width: 980px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Historial de compras - {{ historialCliente?.nombre || '' }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <q-table dense flat bordered :rows="historialVentas" :columns="colsHistorial" row-key="id" hide-pagination @row-click="seleccionarVentaHistorial">
+            <template #body-cell-created_at="props">
+              <q-td :props="props">{{ normalDate(props.row.created_at) }}</q-td>
+            </template>
+            <template #body-cell-tipo_pago="props">
+              <q-td :props="props">
+                <q-chip dense :color="props.row.tipo_pago === 'credito' ? 'warning' : 'positive'" text-color="white">
+                  {{ props.row.tipo_pago }}
+                </q-chip>
+              </q-td>
+            </template>
+            <template #body-cell-saldo_pendiente="props">
+              <q-td :props="props">
+                <q-chip dense :color="Number(props.row.saldo_pendiente || 0) > 0 ? 'orange-8' : 'positive'" text-color="white">
+                  {{ money(props.row.saldo_pendiente) }}
+                </q-chip>
+              </q-td>
+            </template>
+            <template #body-cell-deuda_oculta="props">
+              <q-td :props="props">
+                <q-chip dense :color="props.row.deuda_oculta ? 'grey-8' : 'blue-7'" text-color="white">
+                  {{ props.row.deuda_oculta ? 'Ocultado' : 'Visible' }}
+                </q-chip>
+              </q-td>
+            </template>
+          </q-table>
+          <div class="q-mt-md">
+            <div class="text-subtitle2 q-mb-xs">Pagos de la venta seleccionada</div>
+            <q-table dense flat bordered :rows="historialPagos" :columns="colsPagos" row-key="id" hide-pagination>
+              <template #body-cell-estado="props">
+                <q-td :props="props">
+                  <q-chip dense :color="chipColor(props.row.estado)" text-color="white">{{ props.row.estado }}</q-chip>
+                </q-td>
+              </template>
+              <template #body-cell-fecha_pago="props">
+                <q-td :props="props">{{ normalDate(props.row.fecha_pago) }}</q-td>
+              </template>
+            </q-table>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -197,8 +256,12 @@ export default {
       clientes: [],
       cliente: {},
       dialogCliente: false,
+      dialogHistorial: false,
       loading: false,
       loadingPdf: false,
+      historialCliente: null,
+      historialVentas: [],
+      historialPagos: [],
       filter: '',
       pagination: {
         page: 1,
@@ -215,6 +278,22 @@ export default {
         { name: 'lat', label: 'Lat', align: 'left', field: 'lat' },
         { name: 'lng', label: 'Lng', align: 'left', field: 'lng' },
         { name: 'estado', label: 'Estado', align: 'left', field: 'estado' }
+      ],
+      colsHistorial: [
+        { name: 'id', label: 'Venta', field: 'id', align: 'left' },
+        { name: 'created_at', label: 'Fecha', field: 'created_at', align: 'left' },
+        { name: 'tipo_pago', label: 'Pago', field: 'tipo_pago', align: 'left' },
+        { name: 'total', label: 'Total', field: 'total', align: 'right' },
+        { name: 'total_pagado', label: 'Pagado', field: 'total_pagado', align: 'right' },
+        { name: 'saldo_pendiente', label: 'Deuda', field: 'saldo_pendiente', align: 'right' },
+        { name: 'deuda_oculta', label: 'Estado deuda', field: 'deuda_oculta', align: 'left' }
+      ],
+      colsPagos: [
+        { name: 'nro_cuota', label: 'Cuota', field: 'nro_cuota', align: 'left' },
+        { name: 'monto', label: 'Monto', field: 'monto', align: 'right' },
+        { name: 'metodo', label: 'Metodo', field: 'metodo', align: 'left' },
+        { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
+        { name: 'fecha_pago', label: 'F. Pago', field: 'fecha_pago', align: 'left' }
       ]
     }
   },
@@ -250,6 +329,22 @@ export default {
   methods: {
     req (v) {
       return !!v || 'Campo requerido'
+    },
+    money (n) {
+      return Number(n || 0).toFixed(2)
+    },
+    normalDate (value) {
+      if (!value) return '-'
+      return String(value)
+        .replace('T', ' ')
+        .replace('.000000Z', '')
+        .replace('.000Z', '')
+    },
+    chipColor (estado) {
+      if (estado === 'PAGADO') return 'positive'
+      if (estado === 'PENDIENTE') return 'orange-8'
+      if (estado === 'ANULADO') return 'negative'
+      return 'grey-7'
     },
 
     clienteNuevo () {
@@ -319,6 +414,20 @@ export default {
             .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar'))
             .finally(() => { this.loading = false })
         })
+    },
+    async verHistorial (row) {
+      try {
+        const res = await this.$axios.get(`clientes/${row.id}/historial`, { params: { tipo_venta: this.tipoCliente } })
+        this.historialCliente = row
+        this.historialVentas = res.data || []
+        this.historialPagos = this.historialVentas.length ? (this.historialVentas[0].pagos || []) : []
+        this.dialogHistorial = true
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar historial')
+      }
+    },
+    seleccionarVentaHistorial (evt, row) {
+      this.historialPagos = row?.pagos || []
     },
 
     exportExcel () {

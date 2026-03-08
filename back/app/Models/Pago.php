@@ -25,9 +25,6 @@ class Pago extends Model
     {
         return [
             'monto' => 'decimal:2',
-            'fecha_programada' => 'date',
-            'fecha_pago' => 'datetime',
         ];
     }
 }
-

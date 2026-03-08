@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -85,5 +86,26 @@ class ClienteController extends Controller
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download('clientes-' . $tipo . '.pdf');
+    }
+
+    public function historial(Cliente $cliente, Request $request)
+    {
+        $query = Venta::with(['detalles', 'pagos', 'user'])
+            ->where('cliente_id', $cliente->id)
+            ->orderBy('id', 'desc');
+
+        if ($request->filled('tipo_venta')) {
+            $query->where('tipo_venta', $request->tipo_venta);
+        }
+
+        $ventas = $query->get()->map(function (Venta $v) {
+            $pagado = $v->pagos->where('estado', 'PAGADO')->sum('monto');
+            $deuda = $v->pagos->where('estado', 'PENDIENTE')->sum('monto');
+            $v->setAttribute('total_pagado', round((float)$pagado, 2));
+            $v->setAttribute('saldo_pendiente', round((float)$deuda, 2));
+            return $v;
+        });
+
+        return $ventas->values();
     }
 }

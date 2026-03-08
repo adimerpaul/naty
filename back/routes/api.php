@@ -34,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{user}/permissions', [App\Http\Controllers\UserController::class, 'updateUserPermissions']);
 
     Route::get('/clientes', [ClienteController::class, 'index']);
+    Route::get('/clientes/{cliente}/historial', [ClienteController::class, 'historial']);
     Route::post('/clientes', [ClienteController::class, 'store']);
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update']);
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy']);
@@ -48,11 +49,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/ventas', [VentaController::class, 'index']);
     Route::get('/ventas/deudas/detalle', [VentaController::class, 'deudasDetalle']);
+    Route::get('/ventas/deudas', [VentaController::class, 'deudasDetalle']);
     Route::get('/ventas/{venta}', [VentaController::class, 'show']);
     Route::get('/ventas/{venta}/pdf', [VentaController::class, 'pdf']);
     Route::post('/ventas', [VentaController::class, 'store']);
     Route::put('/ventas/{venta}', [VentaController::class, 'update']);
     Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular']);
+    Route::post('/ventas/{venta}/amortizar', [VentaController::class, 'amortizar']);
+    Route::post('/ventas/{venta}/ocultar-deuda', [VentaController::class, 'ocultarDeuda']);
+    Route::post('/ventas/{venta}/pagos/{pago}/anular', [VentaController::class, 'anularPago']);
     Route::post('/ventas/{venta}/pagos/{pago}/pagar', [VentaController::class, 'pagarCuota']);
 
 });

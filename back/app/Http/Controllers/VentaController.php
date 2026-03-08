@@ -193,10 +193,13 @@ class VentaController extends Controller
 
     public function deudasDetalle(Request $request)
     {
+        $tipoVenta = $request->tipo_venta ?: 'detalle';
         $query = Venta::with(['pagos', 'user'])
-            ->where('tipo_venta', 'detalle')
+            ->withSum(['pagos as saldo_pendiente_sql' => fn ($q) => $q->where('estado', 'PENDIENTE')], 'monto')
+            ->where('tipo_venta', $tipoVenta)
             ->where('tipo_pago', 'credito')
             ->where('estado', '!=', 'ANULADA')
+            ->where('deuda_oculta', false)
             ->whereHas('pagos', fn ($q) => $q->where('estado', 'PENDIENTE'))
             ->orderBy('id', 'desc');
 
@@ -215,8 +218,80 @@ class VentaController extends Controller
             $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
         }
 
+        $sort = strtolower((string) $request->get('sort_deuda', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $query->reorder('saldo_pendiente_sql', $sort)->orderBy('id', 'desc');
         $ventas = $query->get()->map(fn (Venta $v) => $this->withResumen($v));
         return $ventas->values();
+    }
+
+    public function amortizar(Request $request, Venta $venta)
+    {
+        $validated = $request->validate([
+            'monto' => 'required|numeric|min:0.01',
+            'metodo' => ['nullable', Rule::in(['efectivo', 'qr'])],
+            'observacion' => 'nullable|string|max:255',
+        ]);
+
+        if ($venta->estado === 'ANULADA') {
+            return response()->json(['message' => 'No se puede amortizar una venta anulada'], 422);
+        }
+
+        return DB::transaction(function () use ($validated, $venta, $request) {
+            $pendientes = $venta->pagos()->where('estado', 'PENDIENTE')->orderBy('id')->get();
+            $deuda = (float) $pendientes->sum('monto');
+            if ($deuda <= 0) {
+                return response()->json(['message' => 'La venta no tiene deuda pendiente'], 422);
+            }
+
+            $abono = min((float) $validated['monto'], $deuda);
+            $restante = $abono;
+            foreach ($pendientes as $pago) {
+                if ($restante <= 0) {
+                    break;
+                }
+                $montoPago = (float) $pago->monto;
+                if ($montoPago <= $restante) {
+                    $pago->update([
+                        'user_id' => $request->user()->id ?? null,
+                        'fecha_pago' => now(),
+                        'metodo' => $validated['metodo'] ?? 'efectivo',
+                        'observacion' => $validated['observacion'] ?: 'Amortizacion',
+                        'estado' => 'PAGADO',
+                    ]);
+                    $restante -= $montoPago;
+                } else {
+                    $pago->update([
+                        'monto' => round($montoPago - $restante, 2),
+                        'observacion' => 'Saldo pendiente luego de amortizacion',
+                    ]);
+                    Pago::create([
+                        'venta_id' => $venta->id,
+                        'user_id' => $request->user()->id ?? null,
+                        'nro_cuota' => ($pendientes->max('nro_cuota') ?? 0) + 1,
+                        'monto' => round($restante, 2),
+                        'fecha_programada' => now()->toDateString(),
+                        'fecha_pago' => now(),
+                        'metodo' => $validated['metodo'] ?? 'efectivo',
+                        'estado' => 'PAGADO',
+                        'observacion' => $validated['observacion'] ?: 'Amortizacion parcial',
+                    ]);
+                    $restante = 0;
+                }
+            }
+
+            $venta->load(['pagos', 'detalles', 'user', 'caja']);
+            return $this->withResumen($venta);
+        });
+    }
+
+    public function ocultarDeuda(Request $request, Venta $venta)
+    {
+        $request->validate([
+            'oculto' => 'nullable|boolean',
+        ]);
+        $oculto = $request->boolean('oculto', true);
+        $venta->update(['deuda_oculta' => $oculto]);
+        return response()->json(['message' => $oculto ? 'Deuda oculta' : 'Deuda visible']);
     }
 
     public function pagarCuota(Request $request, Venta $venta, Pago $pago)
@@ -243,6 +318,38 @@ class VentaController extends Controller
         ]);
 
         return $pago;
+    }
+
+    public function anularPago(Request $request, Venta $venta, Pago $pago)
+    {
+        if ($pago->venta_id !== $venta->id) {
+            return response()->json(['message' => 'Pago no corresponde a la venta'], 422);
+        }
+        if ($pago->estado !== 'PAGADO') {
+            return response()->json(['message' => 'Solo se puede anular pagos en estado PAGADO'], 422);
+        }
+
+        DB::transaction(function () use ($venta, $pago) {
+            $pago->update([
+                'estado' => 'ANULADO',
+                'observacion' => trim(($pago->observacion ? $pago->observacion . ' | ' : '') . 'Pago anulado'),
+            ]);
+
+            Pago::create([
+                'venta_id' => $venta->id,
+                'user_id' => null,
+                'nro_cuota' => ($venta->pagos()->max('nro_cuota') ?? 0) + 1,
+                'monto' => $pago->monto,
+                'fecha_programada' => now()->toDateString(),
+                'fecha_pago' => null,
+                'metodo' => 'credito',
+                'estado' => 'PENDIENTE',
+                'observacion' => 'Reversion por anulacion de pago #' . $pago->id,
+            ]);
+        });
+
+        $venta->load(['caja', 'detalles', 'pagos', 'user']);
+        return $this->withResumen($venta);
     }
 
     public function anular(Request $request, Venta $venta)
