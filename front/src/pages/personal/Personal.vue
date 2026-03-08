@@ -172,7 +172,7 @@
             <template #body-cell-total_calculado="props"><q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.total_calculado) }}</q-td></template>
             <template #body-cell-total_pagado_salario="props"><q-td :props="props" class="text-right text-weight-bold text-primary">{{ money(props.row.total_pagado_salario) }}</q-td></template>
           </q-table>
-          <q-table dense flat bordered :rows="historialRows" :columns="historialCols" row-key="id" :pagination="{ rowsPerPage: 100 }">
+          <q-table dense flat bordered :rows="historialRowsFiltrados" :columns="historialCols" row-key="id" :pagination="{ rowsPerPage: 100 }">
             <template #body-cell-actions="props">
               <q-td :props="props" class="text-left">
                 <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px">
@@ -267,6 +267,10 @@ export default {
       const total = this.personales.length
       const activos = this.personales.filter(p => p.estado === 'ACTIVO').length
       return { total, activos, inactivos: total - activos }
+    },
+    historialRowsFiltrados () {
+      if (!this.historialMes) return this.historialRows
+      return (this.historialRows || []).filter(r => String(r.mes || '') === String(this.historialMes))
     }
   },
   watch: {

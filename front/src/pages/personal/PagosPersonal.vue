@@ -47,10 +47,6 @@
         <q-td :props="props">
           <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px">
             <q-list dense>
-              <q-item clickable v-close-popup @click="imprimir(props.row)">
-                <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
-                <q-item-section>Imprimir</q-item-section>
-              </q-item>
               <q-item clickable v-close-popup :disable="props.row.tipo_registro !== 'salario'" @click="descargarBoleta(props.row)">
                 <q-item-section avatar><q-icon name="picture_as_pdf" color="negative" /></q-item-section>
                 <q-item-section>Boleta PDF</q-item-section>
@@ -131,8 +127,6 @@
 </template>
 
 <script>
-import { Imprimir } from 'src/addons/Imprimir'
-
 export default {
   name: 'PagosPersonalPage',
   data () {
@@ -316,13 +310,6 @@ export default {
         window.URL.revokeObjectURL(url)
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo descargar PDF')
-      }
-    },
-    imprimir (row) {
-      if (row.tipo_registro === 'salario') {
-        this.descargarBoleta(row)
-      } else {
-        Imprimir.pagoPersonalMovimiento(row)
       }
     },
     anular (row) {

@@ -67,7 +67,7 @@
     <div class="row q-col-gutter-md">
       <div class="col-12 col-lg-5">
         <q-card flat bordered>
-          <q-card-section class="row items-center">
+          <q-card-section class="row items-center" :class="selectedCajaId === 1 ? 'panel-red-header' : 'panel-blue-header'">
             <div class="text-subtitle2 text-weight-bold">Resumen por dia</div>
             <q-space />
             <q-chip dense outline color="primary">{{ month }}</q-chip>
@@ -97,7 +97,7 @@
 
       <div class="col-12 col-lg-7">
         <q-card flat bordered>
-          <q-card-section class="row items-center">
+          <q-card-section class="row items-center" :class="selectedCajaId === 1 ? 'panel-red-header' : 'panel-blue-header'">
             <div class="text-subtitle2 text-weight-bold">Movimientos</div>
             <q-space />
             <q-chip v-if="selectedDate" dense color="primary" text-color="white">Fecha: {{ selectedDate }}</q-chip>
@@ -380,6 +380,14 @@ export default {
   color: #fff;
 }
 .card-chica {
+  background: #0d47a1;
+  color: #fff;
+}
+.panel-red-header {
+  background: #b71c1c;
+  color: #fff;
+}
+.panel-blue-header {
   background: #0d47a1;
   color: #fff;
 }

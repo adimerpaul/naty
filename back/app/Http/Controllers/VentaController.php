@@ -359,6 +359,21 @@ class VentaController extends Controller
             return response()->json(['message' => 'La venta ya fue anulada'], 422);
         }
 
+        // No permitir anular ingresos si dejaria la caja en negativo.
+        if (!empty($venta->caja_id) && $venta->tipo_movimiento === 'ingreso') {
+            $montoAnular = $this->montoQueAfectaCaja($venta);
+            $saldoActual = $this->saldoCajaDisponible((int) $venta->caja_id);
+            $saldoResultante = round($saldoActual - $montoAnular, 2);
+            if ($saldoResultante < 0) {
+                return response()->json([
+                    'message' => 'No se puede anular. Fondos insuficientes en caja para revertir este ingreso.',
+                    'saldo_actual' => $saldoActual,
+                    'monto_anular' => $montoAnular,
+                    'saldo_resultante' => $saldoResultante,
+                ], 422);
+            }
+        }
+
         DB::transaction(function () use ($venta) {
             $venta->update(['estado' => 'ANULADA']);
             $venta->detalles()->update(['estado' => false]);
@@ -436,5 +451,56 @@ class VentaController extends Controller
         $venta->setAttribute('total_pagado', round((float)$pagado, 2));
         $venta->setAttribute('saldo_pendiente', round((float)$deuda, 2));
         return $venta;
+    }
+
+    private function montoQueAfectaCaja(Venta $venta): float
+    {
+        $pagado = (float) DB::table('pagos')
+            ->where('venta_id', $venta->id)
+            ->where('estado', 'PAGADO')
+            ->sum('monto');
+
+        if ($venta->tipo_pago === 'credito') {
+            return round($pagado, 2);
+        }
+
+        if ($pagado > 0) {
+            return round($pagado, 2);
+        }
+
+        return round((float) ($venta->total ?? 0), 2);
+    }
+
+    private function saldoCajaDisponible(int $cajaId): float
+    {
+        $pagos = DB::table('pagos')
+            ->selectRaw('venta_id, SUM(monto) as pagado')
+            ->where('estado', 'PAGADO')
+            ->groupBy('venta_id');
+
+        $row = DB::table('ventas as v')
+            ->leftJoinSub($pagos, 'pg', function ($join) {
+                $join->on('pg.venta_id', '=', 'v.id');
+            })
+            ->whereNull('v.deleted_at')
+            ->where('v.estado', 'ACTIVA')
+            ->where('v.caja_id', $cajaId)
+            ->selectRaw("
+                SUM(
+                    CASE WHEN v.tipo_movimiento='ingreso'
+                        THEN (CASE WHEN v.tipo_pago='credito' THEN COALESCE(pg.pagado,0) ELSE COALESCE(pg.pagado, v.total) END)
+                        ELSE 0 END
+                ) as ingresos,
+                SUM(
+                    CASE WHEN v.tipo_movimiento='egreso'
+                        THEN (CASE WHEN v.tipo_pago='credito' THEN COALESCE(pg.pagado,0) ELSE COALESCE(pg.pagado, v.total) END)
+                        ELSE 0 END
+                ) as egresos
+            ")
+            ->first();
+
+        $ingresos = (float) ($row->ingresos ?? 0);
+        $egresos = (float) ($row->egresos ?? 0);
+        return round($ingresos - $egresos, 2);
     }
 }
