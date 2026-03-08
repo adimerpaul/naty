@@ -36,6 +36,8 @@ class DatabaseSeeder extends Seeder
 //            'Graderias',
             'Cliente Detalle',
             'Cliente Local',
+            'Producto Detalle',
+            'Producto Local',
 //            'Reservas',
 //            'Idiomas',
 //            'Precios',

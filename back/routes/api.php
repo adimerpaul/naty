@@ -3,6 +3,7 @@
 //use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
 
@@ -35,5 +36,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/clientes/{cliente}', [ClienteController::class, 'update']);
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy']);
     Route::get('/clientes/pdf', [ClienteController::class, 'pdf']);
+
+    Route::get('/productos', [ProductoController::class, 'index']);
+    Route::post('/productos', [ProductoController::class, 'store']);
+    Route::put('/productos/{producto}', [ProductoController::class, 'update']);
+    Route::delete('/productos/{producto}', [ProductoController::class, 'destroy']);
 
 });

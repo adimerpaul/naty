@@ -163,41 +163,95 @@
           </q-item-section>
         </q-item>
 
-        <q-item
+        <q-expansion-item
           dense
-          to="/clientes/detalle"
-          exact
-          clickable
-          class="menu-item"
-          active-class="menu-active"
-          v-close-popup
-          v-if="hasPermission('Cliente Detalle') || isAdmin"
+          icon="people_alt"
+          label="Clientes"
+          class="menu-item text-white"
+          expand-icon-class="text-white"
+          v-if="hasPermission('Cliente Detalle') || hasPermission('Cliente Local') || isAdmin"
         >
-          <q-item-section avatar>
-            <q-icon name="person_outline" class="text-white" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-white">Cliente detalle</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item
+            dense
+            to="/clientes/detalle"
+            exact
+            clickable
+            class="menu-item"
+            active-class="menu-active"
+            v-close-popup
+            v-if="hasPermission('Cliente Detalle') || isAdmin"
+          >
+            <q-item-section avatar>
+              <q-icon name="person_outline" class="text-white" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-white">Cliente detalle</q-item-label>
+            </q-item-section>
+          </q-item>
 
-        <q-item
+          <q-item
+            dense
+            to="/clientes/local"
+            exact
+            clickable
+            class="menu-item"
+            active-class="menu-active"
+            v-close-popup
+            v-if="hasPermission('Cliente Local') || isAdmin"
+          >
+            <q-item-section avatar>
+              <q-icon name="storefront" class="text-white" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-white">Cliente local</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
+
+        <q-expansion-item
           dense
-          to="/clientes/local"
-          exact
-          clickable
-          class="menu-item"
-          active-class="menu-active"
-          v-close-popup
-          v-if="hasPermission('Cliente Local') || isAdmin"
+          icon="inventory_2"
+          label="Productos"
+          class="menu-item text-white"
+          expand-icon-class="text-white"
+          v-if="hasPermission('Producto Detalle') || hasPermission('Producto Local') || isAdmin"
         >
-          <q-item-section avatar>
-            <q-icon name="storefront" class="text-white" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-white">Cliente local</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item
+            dense
+            to="/productos/detalle"
+            exact
+            clickable
+            class="menu-item"
+            active-class="menu-active"
+            v-close-popup
+            v-if="hasPermission('Producto Detalle') || isAdmin"
+          >
+            <q-item-section avatar>
+              <q-icon name="sell" class="text-white" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-white">Producto detalle</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            dense
+            to="/productos/local"
+            exact
+            clickable
+            class="menu-item"
+            active-class="menu-active"
+            v-close-popup
+            v-if="hasPermission('Producto Local') || isAdmin"
+          >
+            <q-item-section avatar>
+              <q-icon name="shopping_bag" class="text-white" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-white">Producto local</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
 
         <!-- ========================= -->
         <!-- GRADERÃAS (NUEVO MÃ“DULO) -->
@@ -362,7 +416,6 @@ export default {
   border-radius: 10px;
 }
 </style>
-
 
 
 
