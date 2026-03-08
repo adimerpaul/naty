@@ -25,22 +25,36 @@ class ImportLegacyClientesSeeder extends Seeder
             $payload = [];
 
             foreach ($rows as $row) {
-                $nombre = $this->pickNombre($row);
                 $tipoCliente = $this->mapTipoCliente($row);
+                $nombre = $this->pickNombre($row, $tipoCliente);
                 $estado = strtoupper((string) ($row->estado ?? 'ACTIVO')) === 'ACTIVO';
 
                 $extras = $this->buildExtras($row);
                 $observacion = trim((string) ($row->observacion ?? ''));
                 $observacion2 = $extras !== '' ? $extras : null;
+                $local = $this->nullableTrim($row->local ?? null);
+                $titular = $this->nullableTrim($row->titular ?? null);
+                $tipo = $this->nullableTrim($row->tipo ?? null);
+                $legalidad = $this->nullableTrim($row->legalidad ?? null);
+                $categoria = $this->nullableTrim($row->categoria ?? null);
+                $razon = $this->nullableTrim($row->razon ?? null);
+                $nit = $this->nullableTrim($row->nit ?? null);
 
                 $payload[] = [
                     'id' => (int) $row->id,
                     'nombre' => $nombre,
+                    'local' => $local,
+                    'titular' => $titular,
+                    'tipo' => $tipo,
                     'tipo_cliente' => $tipoCliente,
                     'ci' => $this->nullableTrim($row->ci),
                     'telefono' => $this->nullableTrim($row->telefono),
                     'direccion' => $this->nullableTrim($row->direccion),
                     'fechanac' => $row->fechanac ?? null,
+                    'legalidad' => $legalidad,
+                    'categoria' => $categoria,
+                    'razon' => $razon,
+                    'nit' => $nit,
                     'observacion' => $observacion !== '' ? $observacion : null,
                     'observacion_2' => $observacion2,
                     'lat' => null,
@@ -57,11 +71,18 @@ class ImportLegacyClientesSeeder extends Seeder
                 ['id'],
                 [
                     'nombre',
+                    'local',
+                    'titular',
+                    'tipo',
                     'tipo_cliente',
                     'ci',
                     'telefono',
                     'direccion',
                     'fechanac',
+                    'legalidad',
+                    'categoria',
+                    'razon',
+                    'nit',
                     'observacion',
                     'observacion_2',
                     'lat',
@@ -78,13 +99,19 @@ class ImportLegacyClientesSeeder extends Seeder
         $this->command?->info("Migracion finalizada. Total procesado: {$migrados}.");
     }
 
-    private function pickNombre(object $row): string
+    private function pickNombre(object $row, string $tipoCliente): string
     {
-        $options = [
-            $this->nullableTrim($row->titular ?? null),
-            $this->nullableTrim($row->local ?? null),
-            $this->nullableTrim($row->razon ?? null),
-        ];
+        $options = $tipoCliente === 'local'
+            ? [
+                $this->nullableTrim($row->local ?? null),
+                $this->nullableTrim($row->titular ?? null),
+                $this->nullableTrim($row->razon ?? null),
+            ]
+            : [
+                $this->nullableTrim($row->titular ?? null),
+                $this->nullableTrim($row->local ?? null),
+                $this->nullableTrim($row->razon ?? null),
+            ];
 
         foreach ($options as $value) {
             if ($value !== null && $value !== '') {

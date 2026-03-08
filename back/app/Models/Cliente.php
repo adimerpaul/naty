@@ -12,11 +12,18 @@ class Cliente extends Model
 
     protected $fillable = [
         'nombre',
+        'local',
+        'titular',
+        'tipo',
         'tipo_cliente',
         'ci',
         'telefono',
         'direccion',
         'fechanac',
+        'legalidad',
+        'categoria',
+        'razon',
+        'nit',
         'observacion',
         'lat',
         'lng',
@@ -26,10 +33,7 @@ class Cliente extends Model
     protected function casts(): array
     {
         return [
-//            'estado' => 'boolean',
-//            'lat' => 'decimal:7',
-//            'lng' => 'decimal:7',
-//            'fechanac' => 'date',
+            // sin casts por requerimiento del proyecto
         ];
     }
 }
