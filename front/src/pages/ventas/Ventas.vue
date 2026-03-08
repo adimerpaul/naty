@@ -46,34 +46,43 @@
 
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12 col-sm-6 col-md-3">
-        <q-card flat class="kpi-card kpi-activa">
-          <q-card-section>
-            <div class="text-caption">Ventas activas</div>
-            <div class="text-h6 text-weight-bold">{{ money(totalActivas) }} Bs</div>
+        <q-card flat class="kpi-card kpi-ingresos">
+          <q-card-section class="row items-center">
+            <q-icon name="trending_up" size="28px" class="q-mr-sm" />
+            <div>
+              <div class="text-caption">Total ingresos</div>
+              <div class="text-h6 text-weight-bold">{{ money(totalIngresos) }} Bs</div>
+            </div>
           </q-card-section>
         </q-card>
       </div>
       <div class="col-12 col-sm-6 col-md-3">
-        <q-card flat class="kpi-card kpi-anulada">
-          <q-card-section>
-            <div class="text-caption">Ventas anuladas</div>
-            <div class="text-h6 text-weight-bold">{{ money(totalAnuladas) }} Bs</div>
+        <q-card flat class="kpi-card kpi-egresos">
+          <q-card-section class="row items-center">
+            <q-icon name="trending_down" size="28px" class="q-mr-sm" />
+            <div>
+              <div class="text-caption">Total egresos</div>
+              <div class="text-h6 text-weight-bold">{{ money(totalEgresos) }} Bs</div>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <q-card flat class="kpi-card kpi-saldo">
+          <q-card-section class="row items-center">
+            <q-icon name="account_balance_wallet" size="28px" class="q-mr-sm" />
+            <div>
+              <div class="text-caption">Saldo</div>
+              <div class="text-h6 text-weight-bold">{{ money(saldoGeneral) }} Bs</div>
+            </div>
           </q-card-section>
         </q-card>
       </div>
       <div class="col-12 col-sm-6 col-md-3">
         <q-card flat bordered>
           <q-card-section>
-            <div class="text-caption text-grey-7">Cantidad ingresos</div>
-            <div class="text-h6 text-weight-bold text-positive">{{ cantidadIngresos }}</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card flat bordered>
-          <q-card-section>
-            <div class="text-caption text-grey-7">Cantidad egresos</div>
-            <div class="text-h6 text-weight-bold text-orange-8">{{ cantidadEgresos }}</div>
+            <div class="text-caption text-grey-7">Deuda pendiente</div>
+            <div class="text-h6 text-weight-bold text-orange-8">{{ money(totalDeuda) }} Bs</div>
           </q-card-section>
         </q-card>
       </div>
@@ -93,8 +102,11 @@
       <template #body-cell-created_at="props">
         <q-td :props="props">{{ formatDate(props.row.created_at) }}</q-td>
       </template>
-      <template #body-cell-total="props">
-        <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.total) }}</q-td>
+      <template #body-cell-total_pagado="props">
+        <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.total_pagado || 0) }}</q-td>
+      </template>
+      <template #body-cell-saldo_pendiente="props">
+        <q-td :props="props" class="text-right text-weight-bold text-orange-8">{{ money(props.row.saldo_pendiente || 0) }}</q-td>
       </template>
       <template #body-cell-tipo_movimiento="props">
         <q-td :props="props">
@@ -165,7 +177,8 @@
             <div class="col-6 col-md-3"><b>Usuario:</b> {{ ventaSel?.user?.name || ventaSel?.user?.username || '-' }}</div>
             <div class="col-6 col-md-3"><b>Pago:</b> {{ ventaSel?.tipo_pago }}</div>
             <div class="col-6 col-md-3"><b>Metodo:</b> {{ ventaSel?.pagos?.[0]?.metodo || '-' }}</div>
-            <div class="col-6 col-md-3"><b>Total:</b> {{ money(ventaSel?.total) }} Bs</div>
+            <div class="col-6 col-md-3"><b>Pagado:</b> {{ money(ventaSel?.total_pagado) }} Bs</div>
+            <div class="col-6 col-md-3"><b>Deuda:</b> {{ money(ventaSel?.saldo_pendiente) }} Bs</div>
           </div>
           <q-table dense flat bordered :rows="ventaSel?.detalles || []" :columns="colsDetalle" row-key="id" hide-pagination />
           <div class="q-mt-md">
@@ -347,7 +360,8 @@ export default {
         { name: 'tipo_movimiento', label: 'Tipo', field: 'tipo_movimiento', align: 'left' },
         { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
         { name: 'tipo_pago', label: 'Pago', field: 'tipo_pago', align: 'left' },
-        { name: 'total', label: 'Total', field: 'total', align: 'right' }
+        { name: 'total_pagado', label: 'Total', field: 'total_pagado', align: 'right' },
+        { name: 'saldo_pendiente', label: 'Deuda', field: 'saldo_pendiente', align: 'right' }
       ],
       colsDetalle: [
         { name: 'producto_nombre', label: 'Producto / Concepto', field: 'producto_nombre', align: 'left' },
@@ -368,10 +382,20 @@ export default {
   computed: {
     tipoVenta () { return this.$route.params.tipo === 'local' ? 'local' : 'detalle' },
     tituloPagina () { return this.tipoVenta === 'local' ? 'Ventas local' : 'Ventas detalle' },
-    totalActivas () { return this.ventas.filter(v => v.estado !== 'ANULADA').reduce((a, b) => a + Number(b.total || 0), 0) },
+    totalIngresos () {
+      return this.ventas
+        .filter(v => v.estado !== 'ANULADA' && (v.tipo_movimiento || 'ingreso') !== 'egreso')
+        .reduce((a, b) => a + Number(b.total_pagado || 0), 0)
+    },
+    totalEgresos () {
+      return this.ventas
+        .filter(v => v.estado !== 'ANULADA' && v.tipo_movimiento === 'egreso')
+        .reduce((a, b) => a + Number(b.total_pagado || 0), 0)
+    },
+    saldoGeneral () { return this.totalIngresos - this.totalEgresos },
     totalAnuladas () { return this.ventas.filter(v => v.estado === 'ANULADA').reduce((a, b) => a + Number(b.total || 0), 0) },
-    cantidadIngresos () { return this.ventas.filter(v => (v.tipo_movimiento || 'ingreso') === 'ingreso').length },
-    cantidadEgresos () { return this.ventas.filter(v => v.tipo_movimiento === 'egreso').length },
+    totalDeuda () { return this.ventas.filter(v => v.estado !== 'ANULADA').reduce((a, b) => a + Number(b.saldo_pendiente || 0), 0) },
+    cantidadDeudores () { return this.ventas.filter(v => Number(v.saldo_pendiente || 0) > 0).length },
     userOptions () { return this.users.map(u => ({ label: u.name || u.username, value: u.id })) },
     clienteOptions () { return this.clientes.map(c => ({ label: c.nombre, value: c.id })) }
   },
@@ -554,12 +578,16 @@ export default {
 .kpi-card {
   border-radius: 10px;
 }
-.kpi-activa {
+.kpi-ingresos {
   background: #1f9d55;
   color: #fff;
 }
-.kpi-anulada {
-  background: #f4f4f4;
-  color: #111;
+.kpi-egresos {
+  background: #d32f2f;
+  color: #fff;
+}
+.kpi-saldo {
+  background: #1565c0;
+  color: #fff;
 }
 </style>

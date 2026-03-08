@@ -184,6 +184,10 @@
             <q-item-section avatar><q-icon name="point_of_sale" class="text-white" /></q-item-section>
             <q-item-section><q-item-label class="text-white">Venta detalle</q-item-label></q-item-section>
           </q-item>
+          <q-item dense to="/deudas/detalle" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
+            <q-item-section avatar><q-icon name="payments" class="text-white" /></q-item-section>
+            <q-item-section><q-item-label class="text-white">Deuda detalle</q-item-label></q-item-section>
+          </q-item>
         </q-expansion-item>
 
         <q-expansion-item
@@ -381,4 +385,3 @@ export default {
   margin-left: 16px;
 }
 </style>
-

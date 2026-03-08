@@ -53,12 +53,14 @@ class VentaController extends Controller
             $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
         }
 
-        return $query->get();
+        $ventas = $query->get();
+        return $ventas->map(fn (Venta $v) => $this->withResumen($v));
     }
 
     public function show(Venta $venta)
     {
-        return $venta->load(['caja', 'detalles', 'pagos', 'user']);
+        $venta->load(['caja', 'detalles', 'pagos', 'user']);
+        return $this->withResumen($venta);
     }
 
     public function pdf(Venta $venta)
@@ -85,7 +87,8 @@ class VentaController extends Controller
             'observacion' => $validated['observacion'] ?? null,
         ]);
 
-        return $venta->load(['caja', 'detalles', 'pagos', 'user']);
+        $venta->load(['caja', 'detalles', 'pagos', 'user']);
+        return $this->withResumen($venta);
     }
 
     public function store(Request $request)
@@ -183,8 +186,37 @@ class VentaController extends Controller
                 $this->crearPlanCuotas($venta, $request, $validated, round($total, 2));
             }
 
-            return $venta->load(['caja', 'detalles', 'pagos', 'user']);
+            $venta->load(['caja', 'detalles', 'pagos', 'user']);
+            return $this->withResumen($venta);
         });
+    }
+
+    public function deudasDetalle(Request $request)
+    {
+        $query = Venta::with(['pagos', 'user'])
+            ->where('tipo_venta', 'detalle')
+            ->where('tipo_pago', 'credito')
+            ->where('estado', '!=', 'ANULADA')
+            ->whereHas('pagos', fn ($q) => $q->where('estado', 'PENDIENTE'))
+            ->orderBy('id', 'desc');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('cliente_nombre', 'like', "%{$search}%")
+                    ->orWhere('cliente_telefono', 'like', "%{$search}%")
+                    ->orWhere('id', $search);
+            });
+        }
+        if ($request->filled('date_from')) {
+            $query->where('created_at', '>=', $request->date_from . ' 00:00:00');
+        }
+        if ($request->filled('date_to')) {
+            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+        }
+
+        $ventas = $query->get()->map(fn (Venta $v) => $this->withResumen($v));
+        return $ventas->values();
     }
 
     public function pagarCuota(Request $request, Venta $venta, Pago $pago)
@@ -273,5 +305,14 @@ class VentaController extends Controller
             return "Concepto: {$concepto}";
         }
         return $obs !== '' ? $obs : null;
+    }
+
+    private function withResumen(Venta $venta): Venta
+    {
+        $pagado = $venta->pagos->where('estado', 'PAGADO')->sum('monto');
+        $deuda = $venta->pagos->where('estado', 'PENDIENTE')->sum('monto');
+        $venta->setAttribute('total_pagado', round((float)$pagado, 2));
+        $venta->setAttribute('saldo_pendiente', round((float)$deuda, 2));
+        return $venta;
     }
 }
