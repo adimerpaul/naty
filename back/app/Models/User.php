@@ -21,6 +21,9 @@ class User extends Authenticatable implements AuditableContract
         'email',
         'password',
         'clave',
+        'role',
+        'estado',
+        'fechalimite',
         'telefono_contacto_1',
         'telefono_contacto_2',
     ];

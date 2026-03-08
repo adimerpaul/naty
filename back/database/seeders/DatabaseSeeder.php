@@ -59,6 +59,7 @@ class DatabaseSeeder extends Seeder
         ]);
         $userAdmin->givePermissionTo(Permission::all());
         $this->call([
+                ImportLegacyUsersSeeder::class,
                 ImportLegacyClientesSeeder::class,
                 ImportLegacyEmpleadosSeeder::class,
                 ImportLegacyInventariosSeeder::class,

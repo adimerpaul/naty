@@ -85,6 +85,19 @@ class UserController extends Controller{
             'message' => 'Contraseña reseteada. Se cerraron todas las sesiones del usuario.'
         ]);
     }
+    public function revokeAllAccess(Request $request, User $user)
+    {
+        if (!$request->user()->can('Usuarios')) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $deleted = $user->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Todos los accesos del usuario fueron revocados.',
+            'tokens_revocados' => $deleted,
+        ]);
+    }
     function updateUserPermissions(Request $request, $userId){
         $user = User::findOrFail($userId);
         $permissions = Permission::whereIn('id', $request->permissions)->get();
@@ -171,6 +184,8 @@ class UserController extends Controller{
             'email' => 'sometimes|nullable|email|max:255',
             'avatar' => 'sometimes|nullable|string|max:255',
             'role' => 'sometimes|nullable|string|max:100',
+            'estado' => 'sometimes|nullable|string|max:100',
+            'fechalimite' => 'sometimes|nullable|string|max:255',
             'telefono_contacto_1' => 'sometimes|nullable|string|max:30',
             'telefono_contacto_2' => 'sometimes|nullable|string|max:30',
         ]);
@@ -190,6 +205,9 @@ class UserController extends Controller{
             'username' => 'required',
             'password' => 'required',
             'name' => 'required',
+            'role' => 'nullable|string|max:100',
+            'estado' => 'nullable|string|max:100',
+            'fechalimite' => 'nullable|string|max:255',
             'telefono_contacto_1' => 'nullable|string|max:30',
             'telefono_contacto_2' => 'nullable|string|max:30',
 //            'email' => 'required|email|unique:users',

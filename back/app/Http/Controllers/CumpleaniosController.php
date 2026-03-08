@@ -49,10 +49,26 @@ class CumpleaniosController extends Controller
             ->sort(function ($a, $b) {
                 $aDias = (int) ($a['dias_cumple'] ?? 0);
                 $bDias = (int) ($b['dias_cumple'] ?? 0);
-                if ($aDias === $bDias) {
-                    return strcmp((string) $a['nombre'], (string) $b['nombre']);
+                $aGroup = $aDias < 0 ? 0 : ($aDias === 0 ? 1 : 2);
+                $bGroup = $bDias < 0 ? 0 : ($bDias === 0 ? 1 : 2);
+
+                if ($aGroup !== $bGroup) {
+                    return $aGroup <=> $bGroup;
                 }
-                return abs($aDias) <=> abs($bDias);
+
+                if ($aGroup === 0) {
+                    // Pasados: más antiguos primero (-30, -10, -1)
+                    if ($aDias !== $bDias) {
+                        return $aDias <=> $bDias;
+                    }
+                } elseif ($aGroup === 2) {
+                    // Próximos: más cercanos primero (1, 2, 10)
+                    if ($aDias !== $bDias) {
+                        return $aDias <=> $bDias;
+                    }
+                }
+
+                return strcmp((string) $a['nombre'], (string) $b['nombre']);
             })
             ->values();
 
@@ -231,4 +247,3 @@ class CumpleaniosController extends Controller
         return 'https://wa.me/' . $digits . '?text=' . rawurlencode($mensaje);
     }
 }
-
