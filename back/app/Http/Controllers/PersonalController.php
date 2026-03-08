@@ -65,6 +65,14 @@ class PersonalController extends Controller
         return response()->json(['message' => 'Personal eliminado']);
     }
 
+    public function historialPagos(Personal $personal)
+    {
+        return \App\Models\PersonalPago::with(['caja', 'user'])
+            ->where('personal_id', $personal->id)
+            ->orderBy('id', 'desc')
+            ->get();
+    }
+
     private function savePhoto($file): string
     {
         $dir = public_path('images/personales');
@@ -78,4 +86,3 @@ class PersonalController extends Controller
         return $filename;
     }
 }
-

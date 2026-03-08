@@ -78,6 +78,7 @@ class CajaController extends Controller
 
         $diarioRaw = $this->movimientosQuery()
             ->where('v.caja_id', $caja->id)
+            ->where('v.estado', 'ACTIVA')
             ->whereBetween('v.created_at', [$start, $end])
             ->selectRaw("
                 DATE(v.created_at) as fecha,
@@ -109,8 +110,8 @@ class CajaController extends Controller
             $cursor->addDay();
         }
 
-        $totIngresos = (float) $movimientos->where('tipo_movimiento', 'ingreso')->sum('monto_real');
-        $totEgresos = (float) $movimientos->where('tipo_movimiento', 'egreso')->sum('monto_real');
+        $totIngresos = (float) $movimientos->where('estado', 'ACTIVA')->where('tipo_movimiento', 'ingreso')->sum('monto_real');
+        $totEgresos = (float) $movimientos->where('estado', 'ACTIVA')->where('tipo_movimiento', 'egreso')->sum('monto_real');
 
         return response()->json([
             'caja' => $caja,
@@ -237,14 +238,14 @@ class CajaController extends Controller
                 $join->on('pg.venta_id', '=', 'v.id');
             })
             ->leftJoin('users as u', 'u.id', '=', 'v.user_id')
-            ->whereNull('v.deleted_at')
-            ->where('v.estado', 'ACTIVA');
+            ->whereNull('v.deleted_at');
     }
 
     private function sumMovimientos(int $cajaId, string $tipo, Carbon $start, Carbon $end): float
     {
         $row = $this->movimientosQuery()
             ->where('v.caja_id', $cajaId)
+            ->where('v.estado', 'ACTIVA')
             ->where('v.tipo_movimiento', $tipo)
             ->whereBetween('v.created_at', [$start, $end])
             ->selectRaw("
@@ -264,6 +265,7 @@ class CajaController extends Controller
     {
         $row = $this->movimientosQuery()
             ->where('v.caja_id', $cajaId)
+            ->where('v.estado', 'ACTIVA')
             ->selectRaw("
                 SUM(
                     CASE WHEN v.tipo_movimiento='ingreso'

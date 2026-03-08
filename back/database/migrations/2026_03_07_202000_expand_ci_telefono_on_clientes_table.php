@@ -8,18 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('clientes', function (Blueprint $table) {
-            $table->string('ci', 255)->nullable()->change();
-            $table->string('telefono', 255)->nullable()->change();
-        });
+//        Schema::table('clientes', function (Blueprint $table) {
+//            $table->string('ci', 255)->nullable()->change();
+//            $table->string('telefono', 255)->nullable()->change();
+//        });
     }
 
     public function down(): void
     {
-        Schema::table('clientes', function (Blueprint $table) {
-            $table->string('ci', 30)->nullable()->change();
-            $table->string('telefono', 30)->nullable()->change();
-        });
+//        Schema::table('clientes', function (Blueprint $table) {
+//            $table->string('ci', 30)->nullable()->change();
+//            $table->string('telefono', 30)->nullable()->change();
+//        });
     }
 };
 

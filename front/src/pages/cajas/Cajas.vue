@@ -123,7 +123,7 @@
                       <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
                       <q-item-section>Imprimir</q-item-section>
                     </q-item>
-                    <q-item clickable v-close-popup :disable="props.row.tipo_venta !== 'caja'" @click="anularMovimiento(props.row)">
+                    <q-item clickable v-close-popup :disable="props.row.tipo_venta !== 'caja' || props.row.estado !== 'ACTIVA'" @click="anularMovimiento(props.row)">
                       <q-item-section avatar><q-icon name="block" color="negative" /></q-item-section>
                       <q-item-section>Anular</q-item-section>
                     </q-item>
@@ -136,6 +136,13 @@
               <q-td :props="props">
                 <q-chip dense :color="props.row.tipo_movimiento === 'egreso' ? 'negative' : 'positive'" text-color="white">
                   {{ props.row.tipo_movimiento }}
+                </q-chip>
+              </q-td>
+            </template>
+            <template #body-cell-estado="props">
+              <q-td :props="props">
+                <q-chip dense :color="props.row.estado === 'ACTIVA' ? 'positive' : 'negative'" text-color="white">
+                  {{ props.row.estado }}
                 </q-chip>
               </q-td>
             </template>
@@ -233,6 +240,7 @@ export default {
         { name: 'id', label: 'ID', field: 'id', align: 'left' },
         { name: 'created_at', label: 'Fecha', field: 'created_at', align: 'left' },
         { name: 'tipo_movimiento', label: 'Tipo', field: 'tipo_movimiento', align: 'left' },
+        { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
         { name: 'tipo_venta', label: 'Origen', field: 'tipo_venta', align: 'left' },
         { name: 'usuario', label: 'Usuario', field: 'usuario', align: 'left' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' },
@@ -376,4 +384,3 @@ export default {
   color: #fff;
 }
 </style>
-

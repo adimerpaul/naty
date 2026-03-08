@@ -44,6 +44,8 @@ class DatabaseSeeder extends Seeder
             'Prestamos',
             'Personal',
             'Cajas',
+            'Pagos Personal',
+            'Historial Pagos Personal',
 //            'Reservas',
 //            'Idiomas',
 //            'Precios',
@@ -56,9 +58,11 @@ class DatabaseSeeder extends Seeder
             CajasSeeder::class,
         ]);
         $userAdmin->givePermissionTo(Permission::all());
-//        $this->call([
-//                EventoSeeder::class,
-////                EventoHorarioSeeder::class,
-//        ]);
+        $this->call([
+                ImportLegacyClientesSeeder::class,
+                ImportLegacyEmpleadosSeeder::class,
+                ImportLegacyInventariosSeeder::class,
+                ImportLegacyProductosSeeder::class,
+        ]);
     }
 }

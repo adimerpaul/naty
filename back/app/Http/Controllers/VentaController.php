@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\Pago;
+use App\Models\PersonalPago;
 use App\Models\Producto;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
@@ -361,6 +362,20 @@ class VentaController extends Controller
         DB::transaction(function () use ($venta) {
             $venta->update(['estado' => 'ANULADA']);
             $venta->detalles()->update(['estado' => false]);
+
+            // Si este movimiento pertenece a pagos de personal, mantener estados sincronizados.
+            $personalPago = PersonalPago::where(function ($q) use ($venta) {
+                $q->where('venta_id', $venta->id)
+                    ->orWhere('venta_reversion_id', $venta->id);
+            })->where('estado', 'ACTIVO')->first();
+
+            if ($personalPago) {
+                $updates = ['estado' => 'ANULADO'];
+                if ((int) $personalPago->venta_reversion_id === (int) $venta->id) {
+                    $updates['venta_reversion_id'] = null;
+                }
+                $personalPago->update($updates);
+            }
         });
 
         return response()->json(['message' => 'Venta anulada']);

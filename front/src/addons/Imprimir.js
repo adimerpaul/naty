@@ -1104,4 +1104,22 @@ Oruro</div>
     this.printTicketHtml(html);
   }
 
+  static pagoPersonalMovimiento(pago) {
+    const html = `
+      <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
+        <div style="text-align:center;border-bottom:1px solid #222;padding-bottom:4px;margin-bottom:8px;">
+          <div style="font-size:20px;font-weight:bold;">Comprobante Personal</div>
+          <div>${pago.mes || ''} - ${pago.tipo_registro || ''}</div>
+        </div>
+        <div><b>Personal:</b> ${pago.personal?.nombre || '-'}</div>
+        <div><b>CI:</b> ${pago.personal?.ci || '-'}</div>
+        <div><b>Caja:</b> ${pago.caja?.nombre || '-'}</div>
+        <div><b>Tipo:</b> ${pago.tipo_registro || '-'}</div>
+        <div><b>Monto:</b> ${Number(pago.monto_pagado || 0).toFixed(2)} Bs</div>
+        <div><b>Obs:</b> ${pago.observacion || ''}</div>
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
 }

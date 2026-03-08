@@ -72,6 +72,10 @@
         <q-td :props="props" class="text-left">
           <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px">
             <q-list dense>
+              <q-item clickable v-close-popup @click="verHistorialPagos(props.row)">
+                <q-item-section avatar><q-icon name="history" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Historial pagos</q-item-label></q-item-section>
+              </q-item>
               <q-item clickable v-close-popup @click="editar(props.row)">
                 <q-item-section avatar><q-icon name="edit" /></q-item-section>
                 <q-item-section><q-item-label>Editar</q-item-label></q-item-section>
@@ -143,10 +147,63 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="dialogHistorial">
+      <q-card style="width: 920px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Historial de pagos - {{ historialPersonal?.nombre || '' }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div class="row q-col-gutter-sm q-mb-sm">
+            <div class="col-12 col-md-4">
+              <q-input v-model="historialMes" type="month" dense outlined label="Mes" />
+            </div>
+            <div class="col-12 col-md-2">
+              <q-btn color="primary" no-caps icon="refresh" label="Actualizar" @click="cargarResumenHistorial()" />
+            </div>
+          </div>
+          <q-table dense flat bordered :rows="historialResumenRows" :columns="historialResumenCols" row-key="mes" :pagination="{ rowsPerPage: 100 }" class="q-mb-md">
+            <template #body-cell-sueldo="props"><q-td :props="props" class="text-right">{{ money(props.row.sueldo) }}</q-td></template>
+            <template #body-cell-extras="props"><q-td :props="props" class="text-right text-positive">{{ money(props.row.extras) }}</q-td></template>
+            <template #body-cell-adelantos="props"><q-td :props="props" class="text-right text-orange">{{ money(props.row.adelantos) }}</q-td></template>
+            <template #body-cell-descuentos="props"><q-td :props="props" class="text-right text-negative">{{ money(props.row.descuentos) }}</q-td></template>
+            <template #body-cell-total_calculado="props"><q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.total_calculado) }}</q-td></template>
+            <template #body-cell-total_pagado_salario="props"><q-td :props="props" class="text-right text-weight-bold text-primary">{{ money(props.row.total_pagado_salario) }}</q-td></template>
+          </q-table>
+          <q-table dense flat bordered :rows="historialRows" :columns="historialCols" row-key="id" :pagination="{ rowsPerPage: 100 }">
+            <template #body-cell-actions="props">
+              <q-td :props="props" class="text-left">
+                <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px">
+                  <q-list dense>
+                    <q-item clickable v-close-popup @click="imprimirHistorialPago(props.row)">
+                      <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
+                      <q-item-section>Imprimir pago</q-item-section>
+                    </q-item>
+                    <q-item
+                      clickable
+                      v-close-popup
+                      :disable="props.row.tipo_registro !== 'salario'"
+                      @click="descargarBoletaHistorial(props.row)"
+                    >
+                      <q-item-section avatar><q-icon name="picture_as_pdf" color="negative" /></q-item-section>
+                      <q-item-section>Boleta PDF</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-btn-dropdown>
+              </q-td>
+            </template>
+          </q-table>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script>
+import { Imprimir } from 'src/addons/Imprimir'
+
 export default {
   name: 'PersonalPage',
   data () {
@@ -158,6 +215,11 @@ export default {
       filter: '',
       fotoFile: null,
       fotoPreview: null,
+      dialogHistorial: false,
+      historialPersonal: null,
+      historialMes: new Date().toISOString().slice(0, 7),
+      historialRows: [],
+      historialResumenRows: [],
       pagination: {
         page: 1,
         rowsPerPage: 50,
@@ -178,6 +240,25 @@ export default {
         { name: 'tipo', label: 'Tipo', align: 'left', field: 'tipo' },
         { name: 'fechaingreso', label: 'Ingreso', align: 'left', field: 'fechaingreso' },
         { name: 'estado', label: 'Estado', align: 'left', field: 'estado' }
+      ],
+      historialCols: [
+        { name: 'actions', label: '', field: 'id', align: 'left' },
+        { name: 'id', label: 'ID', field: 'id', align: 'left' },
+        { name: 'mes', label: 'Mes', field: 'mes', align: 'left' },
+        { name: 'tipo_registro', label: 'Tipo', field: 'tipo_registro', align: 'left' },
+        { name: 'caja', label: 'Caja', field: row => row.caja?.nombre, align: 'left' },
+        { name: 'monto_pagado', label: 'Monto', field: 'monto_pagado', align: 'right' },
+        { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
+        { name: 'fecha_pago', label: 'Fecha pago', field: 'fecha_pago', align: 'left' }
+      ],
+      historialResumenCols: [
+        { name: 'mes', label: 'Mes', field: 'mes', align: 'left' },
+        { name: 'sueldo', label: 'Sueldo', field: 'sueldo', align: 'right' },
+        { name: 'extras', label: 'Extras', field: 'extras', align: 'right' },
+        { name: 'adelantos', label: 'Adelantos', field: 'adelantos', align: 'right' },
+        { name: 'descuentos', label: 'Descuentos', field: 'descuentos', align: 'right' },
+        { name: 'total_calculado', label: 'Total calculado', field: 'total_calculado', align: 'right' },
+        { name: 'total_pagado_salario', label: 'Pagado salario', field: 'total_pagado_salario', align: 'right' }
       ]
     }
   },
@@ -281,8 +362,46 @@ export default {
             .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar'))
             .finally(() => { this.loading = false })
         })
+    },
+    async verHistorialPagos (row) {
+      try {
+        const r = await this.$axios.get(`personales/${row.id}/historial-pagos`)
+        this.historialPersonal = row
+        this.historialRows = r.data || []
+        await this.cargarResumenHistorial()
+        this.dialogHistorial = true
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar historial de pagos')
+      }
+    },
+    async cargarResumenHistorial () {
+      if (!this.historialPersonal?.id) return
+      const r = await this.$axios.get('personal-pagos/resumen-mensual', { params: { mes: this.historialMes } })
+      this.historialResumenRows = (r.data || []).filter(x => x.personal_id === this.historialPersonal.id)
+    },
+    async descargarBoletaHistorial (row) {
+      try {
+        const res = await this.$axios.get(`personal-pagos/${row.id}/boleta-pdf`, { responseType: 'blob' })
+        const blob = new Blob([res.data], { type: 'application/pdf' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `boleta-personal-${row.id}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.URL.revokeObjectURL(url)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo descargar boleta')
+      }
+    },
+    imprimirHistorialPago (row) {
+      if (row.tipo_registro === 'salario') {
+        this.descargarBoletaHistorial(row)
+      } else {
+        Imprimir.pagoPersonalMovimiento(row)
+      }
     }
   }
 }
 </script>
-
