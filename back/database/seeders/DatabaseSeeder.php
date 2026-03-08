@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
             'Venta Local',
             'Inventario',
             'Prestamos',
+            'Personal',
 //            'Reservas',
 //            'Idiomas',
 //            'Precios',

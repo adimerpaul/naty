@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\VentaController;
@@ -46,6 +47,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/productos', [ProductoController::class, 'store']);
     Route::put('/productos/{producto}', [ProductoController::class, 'update']);
     Route::delete('/productos/{producto}', [ProductoController::class, 'destroy']);
+
+    Route::get('/personales', [PersonalController::class, 'index']);
+    Route::post('/personales', [PersonalController::class, 'store']);
+    Route::put('/personales/{personal}', [PersonalController::class, 'update']);
+    Route::delete('/personales/{personal}', [PersonalController::class, 'destroy']);
+    Route::post('/personales/{personal}', [PersonalController::class, 'update']);
 
     Route::get('/inventarios', [InventarioController::class, 'index']);
     Route::post('/inventarios', [InventarioController::class, 'store']);
