@@ -149,6 +149,10 @@
                 <q-item-section avatar><q-icon name="fa-brands fa-whatsapp" color="positive" /></q-item-section>
                 <q-item-section>Enviar WhatsApp</q-item-section>
               </q-item>
+              <q-item clickable v-close-popup @click="registrarPrestamoDesdeVenta(props.row)">
+                <q-item-section avatar><q-icon name="inventory_2" color="teal" /></q-item-section>
+                <q-item-section>Registrar prestamo</q-item-section>
+              </q-item>
               <q-item clickable v-close-popup @click="abrirEditar(props.row)">
                 <q-item-section avatar><q-icon name="edit" color="warning" /></q-item-section>
                 <q-item-section>Editar</q-item-section>
@@ -561,6 +565,16 @@ export default {
       if (telefono.length === 8) telefono = `591${telefono}`
       const msg = encodeURIComponent(`Naty - Venta #${row.id}\nTotal: ${this.money(row.total)} Bs`)
       window.open(`https://wa.me/${telefono}?text=${msg}`, '_blank')
+    },
+    registrarPrestamoDesdeVenta(row) {
+      this.$router.push({
+        path: '/inventarios',
+        query: {
+          tab: 'prestamos',
+          cliente_id: row.cliente_id || '',
+          tipo_venta: row.tipo_venta || this.tipoVenta
+        }
+      })
     },
     anularVenta (row) {
       this.$alert.dialog('Desea anular la venta?')

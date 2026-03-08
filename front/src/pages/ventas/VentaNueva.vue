@@ -240,6 +240,137 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="dialogGarantiaAsk">
+      <q-card style="width: 520px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Garantia de inventario</div>
+          <q-space />
+          <q-btn flat round dense icon="close" @click="continuarSinGarantia" />
+        </q-card-section>
+        <q-card-section>
+          <div class="text-body1 q-mb-sm">Deseas registrar prestamo o venta de material?</div>
+          <div class="text-caption text-grey-7">
+            Puedes continuar sin registrar garantia y volver mas tarde desde Inventario.
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat no-caps color="grey-8" label="No, continuar" @click="continuarSinGarantia" />
+          <q-btn no-caps color="primary" icon="handshake" label="Si, registrar" @click="abrirDialogGarantia" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogGarantia">
+      <q-card style="width: 760px; max-width: 98vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Registrar prestamo o venta de material</div>
+          <q-space />
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div class="row q-col-gutter-sm">
+            <div class="col-12 col-md-6">
+              <q-input
+                :model-value="ventaCreada?.cliente_nombre || ''"
+                dense
+                outlined
+                readonly
+                label="Cliente"
+              />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-select
+                v-model="garantia.tipo"
+                dense
+                outlined
+                emit-value
+                map-options
+                label="Tipo"
+                :options="[
+                  { label: 'Prestamo', value: 'prestamo' },
+                  { label: 'Venta material', value: 'venta' }
+                ]"
+              />
+            </div>
+            <div class="col-12 col-md-3">
+              <q-input v-model.number="garantia.cantidad" type="number" min="1" dense outlined label="Cantidad" />
+            </div>
+
+            <div class="col-12 col-md-8">
+              <q-select
+                v-model="garantia.inventario_id"
+                dense
+                outlined
+                emit-value
+                map-options
+                option-label="nombre"
+                option-value="id"
+                label="Inventario"
+                :options="inventarios"
+                :rules="[req]"
+              >
+                <template #option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.nombre }}</q-item-label>
+                      <q-item-label caption>
+                        Disponible: {{ scope.opt.cantidad }} | Precio: {{ money(scope.opt.precio) }} Bs
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+            <div class="col-12 col-md-4">
+              <q-input :model-value="selectedInventario ? selectedInventario.cantidad : 0" dense outlined readonly label="Disponible" />
+            </div>
+            <div class="col-12 col-md-4">
+              <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />
+            </div>
+            <div class="col-12 col-md-4" v-if="garantia.tipo === 'venta'">
+              <q-input
+                v-model.number="garantia.efectivo"
+                type="number"
+                min="0"
+                dense
+                outlined
+                label="Monto efectivo"
+                @update:model-value="garantia.efectivo_manual = true"
+              >
+                <template #append>
+                  <q-btn flat dense no-caps size="sm" icon="calculate" label="Sugerir" @click="aplicarPrecioSugerido" />
+                </template>
+              </q-input>
+            </div>
+            <div class="col-12 col-md-4" v-if="garantia.tipo === 'venta'">
+              <q-select
+                v-model="garantia.metodo_pago"
+                dense
+                outlined
+                emit-value
+                map-options
+                label="Metodo pago"
+                :options="[
+                  { label: 'Efectivo', value: 'efectivo' },
+                  { label: 'QR', value: 'qr' }
+                ]"
+              />
+            </div>
+            <div class="col-12 col-md-4" v-if="garantia.tipo === 'prestamo'">
+              <q-input v-model="garantia.fisico" dense outlined label="Fisico recibido" />
+            </div>
+            <div class="col-12">
+              <q-input v-model="garantia.observacion" dense outlined type="textarea" autogrow label="Observacion" />
+            </div>
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
+          <q-btn no-caps color="primary" label="Guardar" :loading="loadingGarantia" @click="guardarGarantia" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
     <div id="myElement" ></div>
   </q-page>
 </template>
@@ -253,14 +384,19 @@ export default {
     return {
       productos: [],
       clientes: [],
+      inventarios: [],
       clientesBackup: [],
       carrito: [],
       search: '',
       filtroGrupo: 'todos',
       dialogVenta: false,
       dialogClienteNuevo: false,
+      dialogGarantiaAsk: false,
+      dialogGarantia: false,
       loadingGuardar: false,
       loadingClienteNew: false,
+      loadingGarantia: false,
+      ventaCreada: null,
       form: {
         cliente_id: null,
         tipo_pago: 'contado',
@@ -275,6 +411,16 @@ export default {
         direccion: '',
         observacion: ''
       },
+      garantia: {
+        inventario_id: null,
+        cantidad: 1,
+        tipo: 'prestamo',
+        efectivo: 0,
+        efectivo_manual: false,
+        metodo_pago: 'efectivo',
+        fisico: '',
+        observacion: ''
+      },
       resumenCols: [
         { name: 'foto', label: '', field: 'fotografia', align: 'left' },
         { name: 'nombre', label: 'Producto / Concepto', field: 'nombre', align: 'left' },
@@ -287,6 +433,7 @@ export default {
   computed: {
     tipoVenta () { return this.$route.params.tipo === 'local' ? 'local' : 'detalle' },
     tituloPagina () { return this.tipoVenta === 'local' ? 'Nueva venta local' : 'Nueva venta detalle' },
+    selectedInventario () { return this.inventarios.find(i => i.id === this.garantia.inventario_id) || null },
     productosFiltrados () {
       const t = this.search.toLowerCase().trim()
       return this.productos.filter(p => {
@@ -300,6 +447,17 @@ export default {
   mounted () {
     this.cargarTodo()
   },
+  watch: {
+    'garantia.inventario_id' () {
+      this.recalcularPrecioGarantia()
+    },
+    'garantia.cantidad' () {
+      this.recalcularPrecioGarantia()
+    },
+    'garantia.tipo' () {
+      this.recalcularPrecioGarantia()
+    }
+  },
   methods: {
     req (v) { return !!v || 'Campo requerido' },
     money (n) { return Number(n || 0).toFixed(2) },
@@ -307,13 +465,15 @@ export default {
     uid () { return `${Date.now()}-${Math.round(Math.random() * 100000)}` },
     async cargarTodo () {
       try {
-        const [prod, cli] = await Promise.all([
+        const [prod, cli, inv] = await Promise.all([
           this.$axios.get('productos', { params: { tipo_producto: this.tipoVenta } }),
-          this.$axios.get('clientes', { params: { tipo_cliente: this.tipoVenta } })
+          this.$axios.get('clientes', { params: { tipo_cliente: this.tipoVenta } }),
+          this.$axios.get('inventarios')
         ])
         this.productos = prod.data.filter(p => !!p.estado)
         this.clientes = cli.data.filter(c => !!c.estado)
         this.clientesBackup = this.clientes
+        this.inventarios = (inv.data || []).filter(i => (i.cantidad || 0) > 0 && (i.estado || '').toUpperCase() === 'ACTIVO')
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar datos de venta')
       }
@@ -398,13 +558,60 @@ export default {
             precio: i.precio
           }))
         })
+        this.ventaCreada = res.data
         Imprimir.fichaDespacho(res.data)
         this.$alert.success('Venta registrada')
-        this.$router.push(`/ventas/${this.tipoVenta}`)
+        this.dialogVenta = false
+        this.dialogGarantiaAsk = true
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo registrar la venta')
       } finally {
         this.loadingGuardar = false
+      }
+    },
+    continuarSinGarantia () {
+      this.dialogGarantiaAsk = false
+      this.$router.push(`/ventas/${this.tipoVenta}`)
+    },
+    abrirDialogGarantia () {
+      this.dialogGarantiaAsk = false
+      this.garantia = { inventario_id: null, cantidad: 1, tipo: 'prestamo', efectivo: 0, efectivo_manual: false, metodo_pago: 'efectivo', fisico: '', observacion: '' }
+      this.dialogGarantia = true
+    },
+    aplicarPrecioSugerido () {
+      const base = Number(this.selectedInventario?.precio || 0)
+      const cantidad = Math.max(1, Number(this.garantia.cantidad || 1))
+      this.garantia.efectivo = Number((base * cantidad).toFixed(2))
+      this.garantia.efectivo_manual = false
+    },
+    recalcularPrecioGarantia () {
+      if (this.garantia.tipo !== 'venta') return
+      if (this.garantia.efectivo_manual) return
+      this.aplicarPrecioSugerido()
+    },
+    async guardarGarantia () {
+      if (!this.ventaCreada) return
+      this.loadingGarantia = true
+      try {
+        await this.$axios.post('prestamos', {
+          venta_id: this.ventaCreada.id,
+          cliente_id: this.ventaCreada.cliente_id,
+          inventario_id: this.garantia.inventario_id,
+          cantidad: this.garantia.cantidad,
+          tipo: this.garantia.tipo,
+          efectivo: this.garantia.tipo === 'venta' ? this.garantia.efectivo : 0,
+          metodo_pago: this.garantia.metodo_pago,
+          fisico: this.garantia.fisico,
+          observacion: this.garantia.observacion,
+          tipo_venta: this.tipoVenta
+        })
+        this.$alert.success('Garantia registrada')
+        this.dialogGarantia = false
+        this.$router.push(`/ventas/${this.tipoVenta}`)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo registrar garantia')
+      } finally {
+        this.loadingGarantia = false
       }
     }
   }

@@ -45,4 +45,9 @@ class Venta extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function prestamos()
+    {
+        return $this->hasMany(Prestamo::class);
+    }
 }

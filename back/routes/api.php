@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
@@ -44,6 +46,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/productos', [ProductoController::class, 'store']);
     Route::put('/productos/{producto}', [ProductoController::class, 'update']);
     Route::delete('/productos/{producto}', [ProductoController::class, 'destroy']);
+
+    Route::get('/inventarios', [InventarioController::class, 'index']);
+    Route::post('/inventarios', [InventarioController::class, 'store']);
+    Route::put('/inventarios/{inventario}', [InventarioController::class, 'update']);
+    Route::delete('/inventarios/{inventario}', [InventarioController::class, 'destroy']);
+
+    Route::get('/prestamos', [PrestamoController::class, 'index']);
+    Route::post('/prestamos', [PrestamoController::class, 'store']);
+    Route::post('/prestamos/{prestamo}/retornar', [PrestamoController::class, 'retornar']);
 
     Route::get('/cajas', [CajaController::class, 'index']);
 

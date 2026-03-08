@@ -1023,10 +1023,18 @@ Oruro</div>
     const hora = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}:${String(fecha.getSeconds()).padStart(2, '0')}`;
     const fechaTxt = `${dd}/${mm}/${yy}`;
     const detalles = venta.detalles || [];
+    const prestamos = venta.prestamos || [];
     const rows = detalles.map(d => `
       <tr>
         <td>${Number(d.cantidad || 0)}</td>
         <td>${d.producto_nombre || ''}</td>
+      </tr>
+    `).join('');
+    const rowsPrestamo = prestamos.map(p => `
+      <tr>
+        <td>${Number(p.cantidad || 0)}</td>
+        <td>${p.inventario?.nombre || 'material'}</td>
+        <td>${p.tipo}</td>
       </tr>
     `).join('');
 
@@ -1046,6 +1054,12 @@ Oruro</div>
           <thead><tr><th style="text-align:left">CANTIDAD</th><th style="text-align:left">PRODUCTO</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="2">Sin detalle</td></tr>'}</tbody>
         </table>
+        ${prestamos.length ? `
+        <hr>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left">CANTIDAD</th><th style="text-align:left">MATERIAL</th><th style="text-align:left">TIPO</th></tr></thead>
+          <tbody>${rowsPrestamo}</tbody>
+        </table>` : ''}
         <div style="margin-top:8px;"><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
         <div><b>Tel:</b> ${venta.cliente_telefono || '-'}</div>
         <div><b>Direccion:</b> ${venta.cliente_direccion || '-'}</div>

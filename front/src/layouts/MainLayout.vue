@@ -162,6 +162,23 @@
             <q-item-label class="text-white">Usuarios</q-item-label>
           </q-item-section>
         </q-item>
+        <q-item
+          dense
+          to="/inventarios"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Inventario') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="inventory_2" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Inventario</q-item-label>
+          </q-item-section>
+        </q-item>
 
         <q-expansion-item
           dense
