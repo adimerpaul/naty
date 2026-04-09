@@ -128,7 +128,7 @@ export default {
         password: this.password
       })
         .then(res => {
-          const { user, token } = res.data
+          const { user, token, permissions, datos } = res.data
 
           // set header global
           this.$axios.defaults.headers.common.Authorization = `Bearer ${token}`
@@ -137,12 +137,15 @@ export default {
           if (this.$store) {
             this.$store.isLogged = true
             this.$store.user = user
-            this.$store.permissions = (user.permissions || []).map(p => p.name)
+            this.$store.permissions = (permissions || user.permissions || []).map(p => p.name || p)
+            this.$store.env = datos || {}
           }
 
           // token de autenticacion Naty
           localStorage.setItem('tokenNaty', token)
           localStorage.setItem('user', JSON.stringify(user))
+          localStorage.setItem('permissionsNaty', JSON.stringify((permissions || user.permissions || []).map(p => p.name || p)))
+          localStorage.setItem('envNaty', JSON.stringify(datos || {}))
 
           if (this.$alert && this.$alert.success) {
             this.$alert.success('Bienvenido', user?.name || '')
@@ -242,6 +245,5 @@ export default {
   .login-card { border-radius: 14px; }
 }
 </style>
-
 
 

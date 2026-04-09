@@ -13,6 +13,18 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller{
+    private function datosSistema(): array
+    {
+        return [
+            'nit' => env('NIT'),
+            'razon' => env('RAZON'),
+            'direccion' => env('DIRECCION'),
+            'telefono' => env('TELEFONO'),
+            'url' => env('URL_SIAT'),
+            'url2' => env('URL_SIAT2'),
+        ];
+    }
+
     public function changeMyPassword(Request $request)
     {
         $request->validate([
@@ -154,6 +166,8 @@ class UserController extends Controller{
         return response()->json([
             'token' => $token,
             'user' => $user,
+            'permissions' => $user->permissions,
+            'datos' => $this->datosSistema(),
         ]);
     }
     function logout(Request $request){
@@ -163,12 +177,14 @@ class UserController extends Controller{
         ]);
     }
     function me(Request $request){
-//        $user = $request->user();
-//        $user->load('permissions,establecimiento,area');
         $user = User::where('id', $request->user()->id)
             ->with('permissions:id,name')
             ->first();
-        return response()->json($user);
+        return response()->json([
+            'user' => $user,
+            'permissions' => $user?->permissions ?? [],
+            'datos' => $this->datosSistema(),
+        ]);
     }
     function index(){
         return User::where('id', '!=', 0)

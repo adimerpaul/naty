@@ -3,10 +3,11 @@ import { defineStore, acceptHMRUpdate } from 'pinia'
 export const useCounterStore = defineStore('counter', {
   state: () => ({
     counter: 0,
-    user: {},
+    user: JSON.parse(localStorage.getItem('user') || '{}'),
     socketAnalitica: false,
     isLogged: localStorage.getItem('tokenNaty') ? true : false,
-    permissions: [],
+    permissions: JSON.parse(localStorage.getItem('permissionsNaty') || '[]'),
+    env: JSON.parse(localStorage.getItem('envNaty') || '{}'),
     menuEventosByPais: [],
   }),
 

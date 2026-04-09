@@ -543,14 +543,22 @@ export default {
               this.$store.isLogged = false
               this.$store.user = {}
               this.$store.permissions = []
+              this.$store.env = {}
               localStorage.removeItem('tokenNaty')
+              localStorage.removeItem('user')
+              localStorage.removeItem('permissionsNaty')
+              localStorage.removeItem('envNaty')
               this.$router.push('/login')
             })
             .catch(() => {
               this.$store.isLogged = false
               this.$store.user = {}
               this.$store.permissions = []
+              this.$store.env = {}
               localStorage.removeItem('tokenNaty')
+              localStorage.removeItem('user')
+              localStorage.removeItem('permissionsNaty')
+              localStorage.removeItem('envNaty')
               this.$router.push('/login')
             })
         })

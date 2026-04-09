@@ -6,6 +6,22 @@ import VueApexCharts from "vue3-apexcharts";
 
 const api = axios.create({ baseURL: 'https://api.example.com' })
 
+function syncSessionData (payload) {
+  const store = useCounterStore()
+  const user = payload?.user || {}
+  const permissions = payload?.permissions || user?.permissions || []
+  const env = payload?.datos || {}
+
+  store.isLogged = true
+  store.user = user
+  store.permissions = permissions.map(p => p.name || p)
+  store.env = env
+
+  localStorage.setItem('user', JSON.stringify(user))
+  localStorage.setItem('permissionsNaty', JSON.stringify(store.permissions))
+  localStorage.setItem('envNaty', JSON.stringify(env))
+}
+
 export default defineBoot(({ app,router }) => {
   app.use(VueApexCharts);
 
@@ -51,18 +67,18 @@ export default defineBoot(({ app,router }) => {
   if (token) {
     app.config.globalProperties.$axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
     app.config.globalProperties.$axios.get('me').then(response => {
-      useCounterStore().isLogged = true
-      useCounterStore().user = response.data
-      useCounterStore().permissions = (response.data.permissions || []).map(p => p.name)
-      localStorage.setItem('user', JSON.stringify(response.data))
-      // useCounterStore().permissions = response.data.permissions
+      syncSessionData(response.data)
     }).catch(error => {
       console.log(error)
       router.push('/login')
       localStorage.removeItem('tokenNaty')
+      localStorage.removeItem('user')
+      localStorage.removeItem('permissionsNaty')
+      localStorage.removeItem('envNaty')
       useCounterStore().isLogged = false
-      // useCounterStore().permissions = []
+      useCounterStore().permissions = []
       useCounterStore().user = {}
+      useCounterStore().env = {}
     })
   }
   app.config.globalProperties.$api = api

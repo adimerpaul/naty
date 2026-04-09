@@ -137,6 +137,10 @@
                 <q-item-section avatar><q-icon name="print" color="deep-orange" /></q-item-section>
                 <q-item-section>Imprimir ficha</q-item-section>
               </q-item>
+              <q-item clickable v-close-popup :disable="!props.row.cuf" @click="imprimirImpuestos(props.row)">
+                <q-item-section avatar><q-icon name="verified" color="primary" /></q-item-section>
+                <q-item-section>Imprimir impuestos</q-item-section>
+              </q-item>
               <q-item clickable v-close-popup @click="imprimirHojaRuta(props.row)">
                 <q-item-section avatar><q-icon name="receipt_long" color="indigo" /></q-item-section>
                 <q-item-section>Imprimir hoja ruta</q-item-section>
@@ -302,6 +306,7 @@
 
 <script>
 import { Imprimir } from 'src/addons/Imprimir'
+import { useCounterStore } from 'stores/example-store'
 
 export default {
   name: 'VentasPage',
@@ -536,6 +541,20 @@ export default {
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo imprimir ficha')
       }
+    },
+    imprimirImpuestos (row) {
+      const env = useCounterStore().env || {}
+      if (!row?.cuf) {
+        this.$alert.error('La venta no tiene CUF de impuestos')
+        return
+      }
+      if (!env.url2 || !env.nit) {
+        this.$alert.error('Falta la configuracion de URL/NIT para abrir impuestos')
+        return
+      }
+      const baseUrl = String(env.url2).endsWith('/') ? env.url2 : `${env.url2}/`
+      const url = `${baseUrl}consulta/QR?nit=${env.nit}&cuf=${row.cuf}&numero=${row.id}&t=2`
+      window.open(url, '_blank', 'noopener')
     },
     async imprimirHojaRuta(row) {
       try {

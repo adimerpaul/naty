@@ -125,6 +125,18 @@
           :loading="loadingHistorial"
           :pagination="{ rowsPerPage: 10 }"
         >
+          <template #body-cell-actions="props">
+            <q-td :props="props">
+              <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
+                <q-list dense>
+                  <q-item clickable v-close-popup :disable="!props.row.cuf" @click="imprimirImpuestos(props.row)">
+                    <q-item-section avatar><q-icon name="verified" color="primary" /></q-item-section>
+                    <q-item-section>Imprimir impuestos</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-btn-dropdown>
+            </q-td>
+          </template>
           <template #body-cell-prestamo="props">
             <q-td :props="props">
               <q-chip dense :color="props.row.tiene_prestamo ? 'orange' : 'grey-5'" text-color="white">
@@ -523,6 +535,7 @@
 
 <script>
 import { Imprimir } from 'src/addons/Imprimir'
+import { useCounterStore } from 'stores/example-store'
 
 export default {
   name: 'VentaNuevaPage',
@@ -590,6 +603,7 @@ export default {
         { name: 'subtotal', label: 'Subtotal', field: 'subtotal', align: 'right' }
       ],
       historialCols: [
+        { name: 'actions', label: '', field: 'actions', align: 'left' },
         { name: 'id', label: 'ID', field: 'id', align: 'left' },
         { name: 'fecha', label: 'Fecha', field: row => `${row.fecha || ''} ${row.hora || ''}`.trim(), align: 'left' },
         { name: 'cliente_nombre', label: 'Cliente', field: 'cliente_nombre', align: 'left' },
@@ -854,6 +868,20 @@ export default {
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo imprimir la ficha de despacho')
       }
+    },
+    imprimirImpuestos (row) {
+      const env = useCounterStore().env || {}
+      if (!row?.cuf) {
+        this.$alert.error('La venta no tiene CUF de impuestos')
+        return
+      }
+      if (!env.url2 || !env.nit) {
+        this.$alert.error('Falta la configuracion de URL/NIT para abrir impuestos')
+        return
+      }
+      const baseUrl = String(env.url2).endsWith('/') ? env.url2 : `${env.url2}/`
+      const url = `${baseUrl}consulta/QR?nit=${env.nit}&cuf=${row.cuf}&numero=${row.id}&t=2`
+      window.open(url, '_blank', 'noopener')
     },
     resetVentaNueva () {
       this.ventaCreada = null
