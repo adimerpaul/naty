@@ -97,6 +97,58 @@
       </div>
     </div>
 
+    <q-card flat bordered class="q-mt-md">
+      <q-card-section class="row items-center q-col-gutter-sm">
+        <div class="col-12 col-md-4">
+          <div class="text-subtitle1 text-weight-bold">Historial de ventas</div>
+          <div class="text-caption text-grey-7">Ventas realizadas entre fechas para esta misma pantalla</div>
+        </div>
+        <div class="col-12 col-md-2">
+          <q-input v-model="historial.date_from" dense outlined type="date" label="Desde" />
+        </div>
+        <div class="col-12 col-md-2">
+          <q-input v-model="historial.date_to" dense outlined type="date" label="Hasta" />
+        </div>
+        <div class="col-12 col-md-4 text-right">
+          <q-btn color="primary" no-caps icon="refresh" label="Actualizar historial" :loading="loadingHistorial" @click="cargarHistorial" />
+        </div>
+      </q-card-section>
+      <q-separator />
+      <q-card-section>
+        <q-table
+          dense
+          flat
+          bordered
+          :rows="historialRows"
+          :columns="historialCols"
+          row-key="id"
+          :loading="loadingHistorial"
+          :pagination="{ rowsPerPage: 10 }"
+        >
+          <template #body-cell-prestamo="props">
+            <q-td :props="props">
+              <q-chip dense :color="props.row.tiene_prestamo ? 'orange' : 'grey-5'" text-color="white">
+                {{ props.row.tiene_prestamo ? `Si (${props.row.prestamos_count || 0})` : 'No' }}
+              </q-chip>
+            </q-td>
+          </template>
+          <template #body-cell-total="props">
+            <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.total) }} Bs</q-td>
+          </template>
+          <template #body-cell-user="props">
+            <q-td :props="props">{{ props.row.user?.name || props.row.user?.username || '-' }}</q-td>
+          </template>
+          <template #bottom-row>
+            <q-tr>
+              <q-td colspan="5" class="text-right text-weight-bold">Total periodo</q-td>
+              <q-td class="text-right text-weight-bold text-primary">{{ money(totalHistorial) }} Bs</q-td>
+              <q-td />
+            </q-tr>
+          </template>
+        </q-table>
+      </q-card-section>
+    </q-card>
+
     <q-dialog v-model="dialogVenta">
       <q-card style="width: 840px; max-width: 96vw;">
         <q-card-section class="row items-center q-pb-none">
@@ -160,6 +212,9 @@
 
             <div class="row q-col-gutter-sm q-mb-sm">
               <div class="col-12 col-md-4">
+                <q-input v-model="form.fecha_venta" type="date" label="Fecha venta" dense outlined />
+              </div>
+              <div class="col-12 col-md-4">
                 <q-select
                   v-model="form.metodo_pago"
                   label="Metodo"
@@ -174,7 +229,7 @@
               <div class="col-12 col-md-4" v-if="form.tipo_pago === 'credito'">
                 <q-input v-model.number="form.pago_inicial" type="number" min="0" :max="total" label="Pago inicial" dense outlined />
               </div>
-              <div class="col-12 col-md-8">
+              <div class="col-12 col-md-4">
                 <q-input v-model="form.observacion" dense outlined type="textarea" autogrow label="Observacion" />
               </div>
             </div>
@@ -459,7 +514,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-    <div id="myElement" ></div>
+    <div id="myElement" class="hidden"></div>
   </q-page>
 </template>
 
@@ -484,11 +539,18 @@ export default {
       loadingGuardar: false,
       loadingClienteNew: false,
       loadingGarantia: false,
+      loadingHistorial: false,
       ventaCreada: null,
+      historial: {
+        date_from: new Date().toISOString().slice(0, 10),
+        date_to: new Date().toISOString().slice(0, 10)
+      },
+      historialRows: [],
       form: {
         cliente_id: null,
         tipo_pago: 'contado',
         metodo_pago: 'efectivo',
+        fecha_venta: new Date().toISOString().slice(0, 10),
         pago_inicial: 0,
         observacion: ''
       },
@@ -522,6 +584,15 @@ export default {
         { name: 'precio', label: 'Precio', field: 'precio', align: 'right' },
         { name: 'cantidad', label: 'Cant.', field: 'cantidad', align: 'right' },
         { name: 'subtotal', label: 'Subtotal', field: 'subtotal', align: 'right' }
+      ],
+      historialCols: [
+        { name: 'id', label: 'ID', field: 'id', align: 'left' },
+        { name: 'fecha', label: 'Fecha', field: row => `${row.fecha || ''} ${row.hora || ''}`.trim(), align: 'left' },
+        { name: 'cliente_nombre', label: 'Cliente', field: 'cliente_nombre', align: 'left' },
+        { name: 'prestamo', label: 'Prestamo', field: row => row.tiene_prestamo, align: 'left' },
+        { name: 'tipo_pago', label: 'Pago', field: 'tipo_pago', align: 'left' },
+        { name: 'total', label: 'Total', field: 'total', align: 'right' },
+        { name: 'user', label: 'Usuario', field: row => row.user?.name || '-', align: 'left' }
       ]
     }
   },
@@ -537,7 +608,8 @@ export default {
         return okGrupo && okText
       })
     },
-    total () { return this.carrito.reduce((a, b) => a + Number(b.subtotal || 0), 0) }
+    total () { return this.carrito.reduce((a, b) => a + Number(b.subtotal || 0), 0) },
+    totalHistorial () { return this.historialRows.reduce((acc, row) => acc + Number(row.total || 0), 0) }
   },
   mounted () {
     this.cargarTodo()
@@ -569,8 +641,26 @@ export default {
         this.clientes = cli.data.filter(c => !!c.estado)
         this.clientesBackup = this.clientes
         this.inventarios = (inv.data || []).filter(i => (i.cantidad || 0) > 0 && (i.estado || '').toUpperCase() === 'ACTIVO')
+        this.cargarHistorial()
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar datos de venta')
+      }
+    },
+    async cargarHistorial () {
+      this.loadingHistorial = true
+      try {
+        const res = await this.$axios.get('ventas', {
+          params: {
+            tipo_venta: this.tipoVenta,
+            date_from: this.historial.date_from,
+            date_to: this.historial.date_to
+          }
+        })
+        this.historialRows = res.data || []
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar historial de ventas')
+      } finally {
+        this.loadingHistorial = false
       }
     },
     filtrarClientes (val, update) {
@@ -675,6 +765,7 @@ export default {
           tipo_movimiento: 'ingreso',
           tipo_pago: this.form.tipo_pago,
           metodo_pago: this.form.metodo_pago,
+          fecha_venta: this.form.fecha_venta,
           pago_inicial: this.form.tipo_pago === 'credito' ? this.form.pago_inicial : 0,
           observacion: this.form.observacion,
           items: this.carrito.map(i => ({
@@ -685,19 +776,20 @@ export default {
           }))
         })
         this.ventaCreada = res.data
-        Imprimir.fichaDespacho(res.data)
         this.$alert.success('Venta registrada')
         this.dialogVenta = false
         this.dialogGarantiaAsk = true
+        this.cargarHistorial()
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo registrar la venta')
       } finally {
         this.loadingGuardar = false
       }
     },
-    continuarSinGarantia () {
+    async continuarSinGarantia () {
       this.dialogGarantiaAsk = false
-      this.$router.push(`/ventas/${this.tipoVenta}`)
+      await this.imprimirVentaCompleta(this.ventaCreada?.id)
+      this.resetVentaNueva()
     },
     abrirDialogGarantia () {
       this.dialogGarantiaAsk = false
@@ -733,11 +825,47 @@ export default {
         })
         this.$alert.success('Garantia registrada')
         this.dialogGarantia = false
-        this.$router.push(`/ventas/${this.tipoVenta}`)
+        await this.imprimirVentaCompleta(this.ventaCreada?.id)
+        this.resetVentaNueva()
+        this.cargarHistorial()
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo registrar garantia')
       } finally {
         this.loadingGarantia = false
+      }
+    },
+    async imprimirVentaCompleta (ventaId) {
+      if (!ventaId) return
+      try {
+        const res = await this.$axios.get(`ventas/${ventaId}`)
+        Imprimir.fichaDespacho(res.data)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo imprimir la ficha de despacho')
+      }
+    },
+    resetVentaNueva () {
+      this.ventaCreada = null
+      this.dialogGarantiaAsk = false
+      this.dialogGarantia = false
+      this.carrito = []
+      this.search = ''
+      this.form = {
+        cliente_id: null,
+        tipo_pago: 'contado',
+        metodo_pago: 'efectivo',
+        fecha_venta: new Date().toISOString().slice(0, 10),
+        pago_inicial: 0,
+        observacion: ''
+      }
+      this.garantia = {
+        inventario_id: null,
+        cantidad: 1,
+        tipo: 'prestamo',
+        efectivo: 0,
+        efectivo_manual: false,
+        metodo_pago: 'efectivo',
+        fisico: '',
+        observacion: ''
       }
     }
   }

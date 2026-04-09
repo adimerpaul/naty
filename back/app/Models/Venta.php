@@ -18,12 +18,17 @@ class Venta extends Model
         'tipo_movimiento',
         'tipo_pago',
         'estado',
+        'fecha_venta',
         'cliente_nombre',
         'cliente_telefono',
         'cliente_direccion',
         'total',
         'observacion',
         'deuda_oculta',
+    ];
+
+    protected $casts = [
+        'fecha_venta' => 'date:Y-m-d',
     ];
 
     public function detalles()

@@ -18,7 +18,7 @@ class VentaController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Venta::with(['caja', 'detalles', 'pagos', 'user'])->orderBy('id', 'desc');
+        $query = Venta::with(['caja', 'detalles', 'pagos', 'user'])->withCount('prestamos')->orderBy('id', 'desc');
 
         if ($request->filled('tipo_venta')) {
             $query->where('tipo_venta', $request->tipo_venta);
@@ -48,10 +48,22 @@ class VentaController extends Controller
             });
         }
         if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->date_from . ' 00:00:00');
+            $query->where(function ($q) use ($request) {
+                $q->whereDate('fecha_venta', '>=', $request->date_from)
+                    ->orWhere(function ($q2) use ($request) {
+                        $q2->whereNull('fecha_venta')
+                            ->where('created_at', '>=', $request->date_from . ' 00:00:00');
+                    });
+            });
         }
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $query->where(function ($q) use ($request) {
+                $q->whereDate('fecha_venta', '<=', $request->date_to)
+                    ->orWhere(function ($q2) use ($request) {
+                        $q2->whereNull('fecha_venta')
+                            ->where('created_at', '<=', $request->date_to . ' 23:59:59');
+                    });
+            });
         }
 
         $ventas = $query->get();
@@ -100,6 +112,7 @@ class VentaController extends Controller
             'tipo_venta' => ['required', Rule::in(['detalle', 'local'])],
             'tipo_movimiento' => ['nullable', Rule::in(['ingreso', 'egreso'])],
             'tipo_pago' => ['required', Rule::in(['contado', 'credito'])],
+            'fecha_venta' => 'nullable|date',
             'pago_inicial' => 'nullable|numeric|min:0',
             'metodo_pago' => ['nullable', Rule::in(['efectivo', 'qr'])],
             'concepto' => 'nullable|string|max:255',
@@ -126,6 +139,7 @@ class VentaController extends Controller
                 'tipo_movimiento' => $validated['tipo_movimiento'] ?? 'ingreso',
                 'tipo_pago' => $validated['tipo_pago'],
                 'estado' => 'ACTIVA',
+                'fecha_venta' => $validated['fecha_venta'] ?? now()->toDateString(),
                 'cliente_nombre' => $cliente?->nombre,
                 'cliente_telefono' => $cliente?->telefono,
                 'cliente_direccion' => $cliente?->direccion,
@@ -213,10 +227,22 @@ class VentaController extends Controller
             });
         }
         if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->date_from . ' 00:00:00');
+            $query->where(function ($q) use ($request) {
+                $q->whereDate('fecha_venta', '>=', $request->date_from)
+                    ->orWhere(function ($q2) use ($request) {
+                        $q2->whereNull('fecha_venta')
+                            ->where('created_at', '>=', $request->date_from . ' 00:00:00');
+                    });
+            });
         }
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
+            $query->where(function ($q) use ($request) {
+                $q->whereDate('fecha_venta', '<=', $request->date_to)
+                    ->orWhere(function ($q2) use ($request) {
+                        $q2->whereNull('fecha_venta')
+                            ->where('created_at', '<=', $request->date_to . ' 23:59:59');
+                    });
+            });
         }
 
         $sort = strtolower((string) $request->get('sort_deuda', 'desc')) === 'asc' ? 'asc' : 'desc';
@@ -450,6 +476,11 @@ class VentaController extends Controller
         $deuda = $venta->pagos->where('estado', 'PENDIENTE')->sum('monto');
         $venta->setAttribute('total_pagado', round((float)$pagado, 2));
         $venta->setAttribute('saldo_pendiente', round((float)$deuda, 2));
+        $venta->setAttribute('fecha', $venta->fecha_venta?->format('Y-m-d') ?: optional($venta->created_at)->format('Y-m-d'));
+        $venta->setAttribute('hora', optional($venta->created_at)->format('H:i:s'));
+        $prestamosCount = (int) ($venta->prestamos_count ?? ($venta->relationLoaded('prestamos') ? $venta->prestamos->count() : 0));
+        $venta->setAttribute('prestamos_count', $prestamosCount);
+        $venta->setAttribute('tiene_prestamo', $prestamosCount > 0);
         return $venta;
     }
 

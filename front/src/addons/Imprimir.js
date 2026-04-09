@@ -983,11 +983,19 @@ Oruro</div>
     const yy = fecha.getFullYear();
     const fechaTxt = `${dd}/${mm}/${yy}`;
     const detalles = venta.detalles || [];
+    const prestamos = venta.prestamos || [];
     const rows = detalles.map(d => `
       <tr>
         <td>${Number(d.cantidad || 0)}</td>
         <td>${d.producto_nombre || ''}</td>
         <td style="text-align:right">${Number(d.subtotal || 0).toFixed(2)}</td>
+      </tr>
+    `).join('');
+    const rowsPrestamo = prestamos.map(p => `
+      <tr>
+        <td>${Number(p.cantidad || 0)}</td>
+        <td>${p.inventario?.nombre || 'material'}</td>
+        <td>${p.tipo || '-'}</td>
       </tr>
     `).join('');
 
@@ -1008,6 +1016,15 @@ Oruro</div>
           </thead>
           <tbody>${rows || '<tr><td colspan="3">Sin detalle</td></tr>'}</tbody>
         </table>
+        ${prestamos.length ? `
+        <hr>
+        <div style="font-size:15px;"><b>Material / Prestamo</b></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr><th style="text-align:left">Cant</th><th style="text-align:left">Material</th><th style="text-align:left">Tipo</th></tr>
+          </thead>
+          <tbody>${rowsPrestamo}</tbody>
+        </table>` : ''}
         <div style="margin-top:10px;font-size:16px;"><b>TOTAL: ${Number(venta.total || 0).toFixed(2)} Bs</b></div>
         <div style="margin-top:6px;">Observacion: ${venta.observacion || ''}</div>
       </div>
