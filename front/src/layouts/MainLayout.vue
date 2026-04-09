@@ -164,6 +164,23 @@
         </q-item>
         <q-item
           dense
+          to="/impuestos"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Usuarios') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="receipt" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Impuestos</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item
+          dense
           to="/inventarios"
           exact
           clickable
@@ -213,82 +230,157 @@
             <q-item-label class="text-white">Cumpleaños</q-item-label>
           </q-item-section>
         </q-item>
-        <q-expansion-item
+        <q-item
           dense
-          icon="badge"
-          label="Personal"
-          class="text-white"
-          header-class="menu-item text-white"
-          expand-icon-class="text-white"
+          clickable
+          class="menu-item"
+          :class="{ 'menu-active': isSubmenuActive('personal') }"
           v-if="hasPermission('Personal') || hasPermission('Pagos Personal') || hasPermission('Historial Pagos Personal') || isAdmin"
+          @click="personalMenuOpen = !personalMenuOpen"
         >
-          <q-item dense to="/personal" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Personal') || isAdmin">
-            <q-item-section avatar><q-icon name="groups" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Personal</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/personal/pagos" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Pagos Personal') || isAdmin">
-            <q-item-section avatar><q-icon name="payments" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Pagos</q-item-label></q-item-section>
-          </q-item>
-<!--          <q-item dense to="/personal/historial" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Historial Pagos Personal') || isAdmin">-->
-<!--            <q-item-section avatar><q-icon name="history" class="text-white" /></q-item-section>-->
-<!--            <q-item-section><q-item-label class="text-white">Historial de pagos</q-item-label></q-item-section>-->
-<!--          </q-item>-->
-        </q-expansion-item>
+          <q-item-section avatar>
+            <q-icon name="badge" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Personal</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-btn
+              flat
+              round
+              dense
+              icon="keyboard_arrow_right"
+              class="text-white"
+              @click.stop="personalMenuOpen = !personalMenuOpen"
+            >
+              <q-menu
+                v-model="personalMenuOpen"
+                anchor="top end"
+                self="top start"
+                auto-close
+              >
+                <q-list style="min-width: 220px">
+                  <q-item dense to="/personal" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Personal') || isAdmin">
+                    <q-item-section avatar><q-icon name="groups" /></q-item-section>
+                    <q-item-section><q-item-label>Personal</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/personal/pagos" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Pagos Personal') || isAdmin">
+                    <q-item-section avatar><q-icon name="payments" /></q-item-section>
+                    <q-item-section><q-item-label>Pagos</q-item-label></q-item-section>
+                  </q-item>
+<!--                  <q-item dense to="/personal/historial" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Historial Pagos Personal') || isAdmin">-->
+<!--                    <q-item-section avatar><q-icon name="history" /></q-item-section>-->
+<!--                    <q-item-section><q-item-label>Historial de pagos</q-item-label></q-item-section>-->
+<!--                  </q-item>-->
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </q-item-section>
+        </q-item>
 
-        <q-expansion-item
+        <q-item
           dense
-          icon="store"
-          label="Detalle"
-          class="text-white"
-          header-class="menu-item text-white"
-          expand-icon-class="text-white"
+          clickable
+          class="menu-item"
+          :class="{ 'menu-active': isSubmenuActive('detalle') }"
           v-if="canDetalle"
+          @click="detalleMenuOpen = !detalleMenuOpen"
         >
-          <q-item dense to="/clientes/detalle" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Cliente Detalle') || isAdmin">
-            <q-item-section avatar><q-icon name="person_outline" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Cliente detalle</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/productos/detalle" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Producto Detalle') || isAdmin">
-            <q-item-section avatar><q-icon name="sell" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Producto detalle</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/ventas/detalle" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
-            <q-item-section avatar><q-icon name="point_of_sale" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Venta detalle</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/deudas/detalle" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
-            <q-item-section avatar><q-icon name="payments" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Deuda detalle</q-item-label></q-item-section>
-          </q-item>
-        </q-expansion-item>
+          <q-item-section avatar>
+            <q-icon name="store" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Detalle</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-btn
+              flat
+              round
+              dense
+              icon="keyboard_arrow_right"
+              class="text-white"
+              @click.stop="detalleMenuOpen = !detalleMenuOpen"
+            >
+              <q-menu
+                v-model="detalleMenuOpen"
+                anchor="top end"
+                self="top start"
+                auto-close
+              >
+                <q-list style="min-width: 220px">
+                  <q-item dense to="/clientes/detalle" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Cliente Detalle') || isAdmin">
+                    <q-item-section avatar><q-icon name="person_outline" /></q-item-section>
+                    <q-item-section><q-item-label>Cliente detalle</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/productos/detalle" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Producto Detalle') || isAdmin">
+                    <q-item-section avatar><q-icon name="sell" /></q-item-section>
+                    <q-item-section><q-item-label>Producto detalle</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/ventas/detalle" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
+                    <q-item-section avatar><q-icon name="point_of_sale" /></q-item-section>
+                    <q-item-section><q-item-label>Venta detalle</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/deudas/detalle" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
+                    <q-item-section avatar><q-icon name="payments" /></q-item-section>
+                    <q-item-section><q-item-label>Deuda detalle</q-item-label></q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </q-item-section>
+        </q-item>
 
-        <q-expansion-item
+        <q-item
           dense
-          icon="local_mall"
-          label="Local"
-          class="text-white"
-          header-class="menu-item text-white"
-          expand-icon-class="text-white"
+          clickable
+          class="menu-item"
+          :class="{ 'menu-active': isSubmenuActive('local') }"
           v-if="canLocal"
+          @click="localMenuOpen = !localMenuOpen"
         >
-          <q-item dense to="/clientes/local" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Cliente Local') || isAdmin">
-            <q-item-section avatar><q-icon name="storefront" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Cliente local</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/productos/local" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Producto Local') || isAdmin">
-            <q-item-section avatar><q-icon name="shopping_bag" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Producto local</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/ventas/local" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
-            <q-item-section avatar><q-icon name="receipt_long" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Venta local</q-item-label></q-item-section>
-          </q-item>
-          <q-item dense to="/deudas/local" exact clickable class="menu-item" active-class="menu-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
-            <q-item-section avatar><q-icon name="account_balance" class="text-white" /></q-item-section>
-            <q-item-section><q-item-label class="text-white">Deuda local</q-item-label></q-item-section>
-          </q-item>
-        </q-expansion-item>
+          <q-item-section avatar>
+            <q-icon name="local_mall" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Local</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-btn
+              flat
+              round
+              dense
+              icon="keyboard_arrow_right"
+              class="text-white"
+              @click.stop="localMenuOpen = !localMenuOpen"
+            >
+              <q-menu
+                v-model="localMenuOpen"
+                anchor="top end"
+                self="top start"
+                auto-close
+              >
+                <q-list style="min-width: 220px">
+                  <q-item dense to="/clientes/local" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Cliente Local') || isAdmin">
+                    <q-item-section avatar><q-icon name="storefront" /></q-item-section>
+                    <q-item-section><q-item-label>Cliente local</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/productos/local" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Producto Local') || isAdmin">
+                    <q-item-section avatar><q-icon name="shopping_bag" /></q-item-section>
+                    <q-item-section><q-item-label>Producto local</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/ventas/local" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
+                    <q-item-section avatar><q-icon name="receipt_long" /></q-item-section>
+                    <q-item-section><q-item-label>Venta local</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item dense to="/deudas/local" exact clickable active-class="menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
+                    <q-item-section avatar><q-icon name="account_balance" /></q-item-section>
+                    <q-item-section><q-item-label>Deuda local</q-item-label></q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
+          </q-item-section>
+        </q-item>
 
         <!-- ========================= -->
         <!-- GRADERÃAS (NUEVO MÃ“DULO) -->
@@ -382,7 +474,10 @@ export default {
   name: 'MainLayout',
   data () {
     return {
-      leftDrawerOpen: false
+      leftDrawerOpen: false,
+      personalMenuOpen: false,
+      detalleMenuOpen: false,
+      localMenuOpen: false
     }
   },
   mounted () {
@@ -417,6 +512,23 @@ export default {
     // },
     toggleLeftDrawer () {
       this.leftDrawerOpen = !this.leftDrawerOpen
+    },
+    isSubmenuActive (section) {
+      const path = this.$route.path
+
+      if (section === 'personal') {
+        return path.startsWith('/personal')
+      }
+
+      if (section === 'detalle') {
+        return path.endsWith('/detalle')
+      }
+
+      if (section === 'local') {
+        return path.endsWith('/local')
+      }
+
+      return false
     },
     hasPermission (perm) {
       return this.$store && this.$store.permissions
@@ -458,7 +570,8 @@ export default {
   color: #fff !important;
   border-radius: 10px;
 }
-:deep(.q-expansion-item__content .menu-item) {
-  margin-left: 16px;
+:deep(.menu-popup-active) {
+  background: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
 }
 </style>

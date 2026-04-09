@@ -411,6 +411,11 @@ export default {
     this.ventasGet()
   },
   methods: {
+    apiErrorMessage (error, fallback) {
+      return error?.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().find(Boolean) || fallback
+        : (error?.response?.data?.message || fallback)
+    },
     req (v) { return !!v || 'Campo requerido' },
     entero (v) { return Number.isInteger(Number(v)) || 'Solo numeros enteros' },
     money (n) { return Number(n || 0).toFixed(2) },
@@ -506,7 +511,7 @@ export default {
         this.dialogMovimiento = false
         this.ventasGet()
       } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo guardar movimiento')
+        this.$alert.error(this.apiErrorMessage(e, 'No se pudo guardar movimiento'))
       } finally {
         this.loadingMov = false
       }

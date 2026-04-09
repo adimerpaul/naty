@@ -230,6 +230,9 @@
                 <q-input v-model.number="form.pago_inicial" type="number" min="0" :max="total" label="Pago inicial" dense outlined />
               </div>
               <div class="col-12 col-md-4">
+                <q-checkbox v-model="form.facturado" label="Facturado SIAT" dense />
+              </div>
+              <div class="col-12 col-md-8">
                 <q-input v-model="form.observacion" dense outlined type="textarea" autogrow label="Observacion" />
               </div>
             </div>
@@ -551,6 +554,7 @@ export default {
         tipo_pago: 'contado',
         metodo_pago: 'efectivo',
         fecha_venta: new Date().toISOString().slice(0, 10),
+        facturado: false,
         pago_inicial: 0,
         observacion: ''
       },
@@ -766,6 +770,7 @@ export default {
           tipo_pago: this.form.tipo_pago,
           metodo_pago: this.form.metodo_pago,
           fecha_venta: this.form.fecha_venta,
+          facturado: this.form.facturado,
           pago_inicial: this.form.tipo_pago === 'credito' ? this.form.pago_inicial : 0,
           observacion: this.form.observacion,
           items: this.carrito.map(i => ({
@@ -776,7 +781,14 @@ export default {
           }))
         })
         this.ventaCreada = res.data
-        this.$alert.success('Venta registrada')
+        const fact = res.data?.facturacion_resultado
+        if (this.form.facturado && fact?.ok) {
+          this.$alert.success('Venta registrada y factura enviada a SIAT')
+        } else if (this.form.facturado && fact && !fact.ok) {
+          this.$alert.warning((fact.mensajes && fact.mensajes[0]) || 'Venta registrada, pero la factura no se valido en SIAT')
+        } else {
+          this.$alert.success('Venta registrada')
+        }
         this.dialogVenta = false
         this.dialogGarantiaAsk = true
         this.cargarHistorial()
@@ -854,6 +866,7 @@ export default {
         tipo_pago: 'contado',
         metodo_pago: 'efectivo',
         fecha_venta: new Date().toISOString().slice(0, 10),
+        facturado: false,
         pago_inicial: 0,
         observacion: ''
       }

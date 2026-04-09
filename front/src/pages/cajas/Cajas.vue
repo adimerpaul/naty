@@ -260,6 +260,11 @@ export default {
     this.loadAll()
   },
   methods: {
+    apiErrorMessage (error, fallback) {
+      return error?.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().find(Boolean) || fallback
+        : (error?.response?.data?.message || fallback)
+    },
     req (v) { return !!v || 'Campo requerido' },
     money (n) { return Number(n || 0).toFixed(2) + ' Bs' },
     formatDate (v) {
@@ -351,7 +356,7 @@ export default {
         this.dialogMov = false
         await this.loadAll()
       } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo guardar movimiento')
+        this.$alert.error(this.apiErrorMessage(e, 'No se pudo guardar movimiento'))
       } finally {
         this.loadingMov = false
       }

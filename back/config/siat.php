@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'token' => env('TOKEN'),
+    'url' => rtrim((string) env('URL_SIAT', 'https://pilotosiatservicios.impuestos.gob.bo/v2/'), '/') . '/',
+    'url_portal' => rtrim((string) env('URL_SIAT2', 'https://pilotosiat.impuestos.gob.bo/'), '/') . '/',
+    'nit' => env('NIT'),
+    'razon' => env('RAZON'),
+    'codigo_sistema' => env('CODIGO_SISTEMA'),
+    'ambiente' => (int) env('AMBIENTE', 2),
+    'modalidad' => (int) env('MODALIDAD', 2),
+    'direccion' => env('DIRECCION'),
+    'telefono' => env('TELEFONO'),
+    'municipio' => env('SIAT_MUNICIPIO', 'Oruro'),
+    'codigo_sucursal' => (int) env('SIAT_CODIGO_SUCURSAL', 0),
+    'codigo_punto_venta' => (int) env('SIAT_CODIGO_PUNTO_VENTA', 0),
+    'codigo_documento_sector' => (int) env('SIAT_CODIGO_DOCUMENTO_SECTOR', 1),
+    'tipo_factura_documento' => (int) env('SIAT_TIPO_FACTURA_DOCUMENTO', 1),
+    'codigo_metodo_pago' => (int) env('SIAT_CODIGO_METODO_PAGO', 1),
+    'codigo_moneda' => (int) env('SIAT_CODIGO_MONEDA', 1),
+    'tipo_cambio' => (float) env('SIAT_TIPO_CAMBIO', 1),
+    'actividad_economica' => env('SIAT_ACTIVIDAD_ECONOMICA', '463000'),
+    'codigo_producto_sin' => env('SIAT_CODIGO_PRODUCTO_SIN', '62121'),
+    'unidad_medida' => env('SIAT_UNIDAD_MEDIDA', '62'),
+    'xsd_compra_venta' => base_path('../siat/facturaComputarizadaCompraVenta.xsd'),
+    'storage_dir' => storage_path('app/private/siat'),
+];

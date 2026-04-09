@@ -365,6 +365,11 @@ export default {
     await this.refreshBoard()
   },
   methods: {
+    apiErrorMessage (error, fallback) {
+      return error?.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().find(Boolean) || fallback
+        : (error?.response?.data?.message || fallback)
+    },
     req (v) {
       return !!v || 'Campo requerido'
     },
@@ -481,7 +486,7 @@ export default {
         await this.refreshBoard()
         await this.loadHistory(this.dialogForm.personal_id)
       } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo guardar el pago')
+        this.$alert.error(this.apiErrorMessage(e, 'No se pudo guardar el pago'))
       } finally {
         this.savingDialog = false
       }

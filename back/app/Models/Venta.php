@@ -25,10 +25,23 @@ class Venta extends Model
         'total',
         'observacion',
         'deuda_oculta',
+        'facturado',
+        'factura_estado',
+        'factura_error',
+        'cuf',
+        'cufd',
+        'leyenda',
+        'online',
+        'siat_codigo_recepcion',
+        'factura_xml_path',
+        'factura_gz_path',
     ];
 
     protected $casts = [
         'fecha_venta' => 'date:Y-m-d',
+        'deuda_oculta' => 'boolean',
+        'facturado' => 'boolean',
+        'online' => 'boolean',
     ];
 
     public function detalles()
@@ -44,6 +57,11 @@ class Venta extends Model
     public function caja()
     {
         return $this->belongsTo(Caja::class);
+    }
+
+    public function cliente()
+    {
+        return $this->belongsTo(Cliente::class);
     }
 
     public function user()

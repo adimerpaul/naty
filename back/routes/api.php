@@ -13,6 +13,7 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
 use App\Http\Controllers\CumpleaniosController;
+use App\Http\Controllers\ImpuestoController;
 
 Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
 Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
@@ -38,6 +39,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/permissions', [App\Http\Controllers\UserController::class, 'permissions']);
     Route::get('/users/{user}/permissions', [App\Http\Controllers\UserController::class, 'userPermissions']);
     Route::put('/users/{user}/permissions', [App\Http\Controllers\UserController::class, 'updateUserPermissions']);
+    Route::get('/impuestos/estado', [ImpuestoController::class, 'estado']);
+    Route::post('/impuestos/cuis', [ImpuestoController::class, 'generarCuis']);
+    Route::post('/impuestos/cufd', [ImpuestoController::class, 'generarCufd']);
 
     Route::get('/clientes', [ClienteController::class, 'index']);
     Route::get('/clientes/{cliente}/historial', [ClienteController::class, 'historial']);
@@ -86,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ventas/{venta}/pdf', [VentaController::class, 'pdf']);
     Route::post('/ventas', [VentaController::class, 'store']);
     Route::put('/ventas/{venta}', [VentaController::class, 'update']);
+    Route::post('/ventas/{venta}/facturar', [ImpuestoController::class, 'facturarVenta']);
     Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular']);
     Route::post('/ventas/{venta}/amortizar', [VentaController::class, 'amortizar']);
     Route::post('/ventas/{venta}/ocultar-deuda', [VentaController::class, 'ocultarDeuda']);

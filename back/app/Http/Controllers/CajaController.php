@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CajaController extends Controller
 {
@@ -149,6 +150,9 @@ class CajaController extends Controller
                     return response()->json(['message' => 'Debe seleccionar caja'], 422);
                 }
                 $tipo = $validated['tipo_movimiento'] ?? 'ingreso';
+                if ($tipo === 'egreso') {
+                    $this->validarSaldoSuficiente($cajaId, $monto);
+                }
                 $venta = $this->crearVentaCaja([
                     'caja_id' => $cajaId,
                     'tipo_movimiento' => $tipo,
@@ -169,6 +173,7 @@ class CajaController extends Controller
             $obsBase = $obs !== '' ? $obs . ' | ' : '';
             $cajaOrigen = Caja::findOrFail($origen);
             $cajaDestino = Caja::findOrFail($destino);
+            $this->validarSaldoSuficiente($origen, $monto);
 
             $egreso = $this->crearVentaCaja([
                 'caja_id' => $origen,
@@ -283,5 +288,16 @@ class CajaController extends Controller
         $ing = (float) ($row->ingresos ?? 0);
         $egr = (float) ($row->egresos ?? 0);
         return round($ing - $egr, 2);
+    }
+
+    private function validarSaldoSuficiente(int $cajaId, float $monto): void
+    {
+        $saldoDisponible = $this->saldoCaja($cajaId);
+
+        if ($monto > $saldoDisponible) {
+            throw ValidationException::withMessages([
+                'monto' => 'Fondos insuficientes en caja. Disponible: ' . round($saldoDisponible, 2) . ' Bs',
+            ]);
+        }
     }
 }

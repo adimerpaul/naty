@@ -8,6 +8,7 @@ use App\Models\PersonalPago;
 use App\Models\Producto;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
+use App\Services\Impuestos\SiatService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +114,7 @@ class VentaController extends Controller
             'tipo_movimiento' => ['nullable', Rule::in(['ingreso', 'egreso'])],
             'tipo_pago' => ['required', Rule::in(['contado', 'credito'])],
             'fecha_venta' => 'nullable|date',
+            'facturado' => 'nullable|boolean',
             'pago_inicial' => 'nullable|numeric|min:0',
             'metodo_pago' => ['nullable', Rule::in(['efectivo', 'qr'])],
             'concepto' => 'nullable|string|max:255',
@@ -125,18 +127,31 @@ class VentaController extends Controller
             'items.*.precio' => 'required|numeric|min:0',
         ]);
 
-        return DB::transaction(function () use ($validated, $request) {
+        $venta = DB::transaction(function () use ($validated, $request) {
             $cliente = null;
             if (!empty($validated['cliente_id'])) {
                 $cliente = Cliente::find($validated['cliente_id']);
             }
 
+            $cajaId = (int) ($validated['caja_id'] ?? 1);
+            $tipoMovimiento = $validated['tipo_movimiento'] ?? 'ingreso';
+
+            $montoAfectaCaja = $this->montoInicialQueAfectaCaja($validated);
+            if ($tipoMovimiento === 'egreso' && $montoAfectaCaja > 0) {
+                $saldoDisponible = $this->saldoCajaDisponible($cajaId);
+                if ($montoAfectaCaja > $saldoDisponible) {
+                    throw ValidationException::withMessages([
+                        'monto' => 'Fondos insuficientes en caja. Disponible: ' . round($saldoDisponible, 2) . ' Bs',
+                    ]);
+                }
+            }
+
             $venta = Venta::create([
-                'caja_id' => $validated['caja_id'] ?? 1, // Caja General por defecto
+                'caja_id' => $cajaId, // Caja General por defecto
                 'cliente_id' => $cliente?->id,
                 'user_id' => $request->user()->id ?? null,
                 'tipo_venta' => $validated['tipo_venta'],
-                'tipo_movimiento' => $validated['tipo_movimiento'] ?? 'ingreso',
+                'tipo_movimiento' => $tipoMovimiento,
                 'tipo_pago' => $validated['tipo_pago'],
                 'estado' => 'ACTIVA',
                 'fecha_venta' => $validated['fecha_venta'] ?? now()->toDateString(),
@@ -145,6 +160,9 @@ class VentaController extends Controller
                 'cliente_direccion' => $cliente?->direccion,
                 'observacion' => $this->buildObservacion($validated),
                 'total' => 0,
+                'facturado' => (bool) ($validated['facturado'] ?? false),
+                'factura_estado' => !empty($validated['facturado']) ? 'PENDIENTE' : 'SIN_GESTION',
+                'factura_error' => null,
             ]);
 
             $items = $validated['items'] ?? [];
@@ -201,9 +219,36 @@ class VentaController extends Controller
                 $this->crearPlanCuotas($venta, $request, $validated, round($total, 2));
             }
 
-            $venta->load(['caja', 'detalles', 'pagos', 'user']);
+            $venta->load(['caja', 'detalles', 'pagos', 'user', 'cliente']);
             return $this->withResumen($venta);
         });
+
+        $resultadoFacturacion = null;
+        if ($venta->facturado) {
+            try {
+                $resultadoFacturacion = app(SiatService::class)->facturarVenta($venta);
+                $venta->refresh()->load(['caja', 'detalles', 'pagos', 'user', 'cliente', 'prestamos.inventario']);
+                $venta = $this->withResumen($venta);
+            } catch (\Throwable $e) {
+                Venta::query()->whereKey($venta->id)->update([
+                    'factura_estado' => 'ERROR',
+                    'factura_error' => $e->getMessage(),
+                ]);
+                $venta->refresh()->load(['caja', 'detalles', 'pagos', 'user', 'cliente', 'prestamos.inventario']);
+                $venta = $this->withResumen($venta);
+                $resultadoFacturacion = [
+                    'ok' => false,
+                    'estado' => 'ERROR',
+                    'mensajes' => [$e->getMessage()],
+                ];
+            }
+        }
+
+        if ($resultadoFacturacion !== null) {
+            $venta->setAttribute('facturacion_resultado', $resultadoFacturacion);
+        }
+
+        return $venta;
     }
 
     public function deudasDetalle(Request $request)
@@ -470,6 +515,24 @@ class VentaController extends Controller
         return $obs !== '' ? $obs : null;
     }
 
+    private function montoInicialQueAfectaCaja(array $validated): float
+    {
+        if (($validated['tipo_pago'] ?? 'contado') === 'credito') {
+            return round((float) ($validated['pago_inicial'] ?? 0), 2);
+        }
+
+        $items = $validated['items'] ?? [];
+        if (!empty($items)) {
+            $total = collect($items)->sum(function ($item) {
+                return round((float) ($item['cantidad'] ?? 0) * (float) ($item['precio'] ?? 0), 2);
+            });
+
+            return round((float) $total, 2);
+        }
+
+        return round((float) ($validated['monto'] ?? 0), 2);
+    }
+
     private function withResumen(Venta $venta): Venta
     {
         $pagado = $venta->pagos->where('estado', 'PAGADO')->sum('monto');
@@ -481,6 +544,7 @@ class VentaController extends Controller
         $prestamosCount = (int) ($venta->prestamos_count ?? ($venta->relationLoaded('prestamos') ? $venta->prestamos->count() : 0));
         $venta->setAttribute('prestamos_count', $prestamosCount);
         $venta->setAttribute('tiene_prestamo', $prestamosCount > 0);
+        $venta->setAttribute('factura_ok', $venta->facturado && $venta->factura_estado === 'VALIDADA');
         return $venta;
     }
 

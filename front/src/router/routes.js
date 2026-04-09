@@ -9,6 +9,11 @@ const routes = [
         component: () => import('pages/usuarios/Usuarios.vue'),
         meta: {requiresAuth: true, perm: 'Usuarios'}
       },
+      {
+        path: '/impuestos',
+        component: () => import('pages/impuestos/Impuestos.vue'),
+        meta: { requiresAuth: true }
+      },
       // to="/cambiar-contrasena"
       {
         path:'/cambiar-contrasena',
