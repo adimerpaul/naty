@@ -28,21 +28,20 @@
           </q-card-section>
         </q-card>
 
-        <div class="row q-col-gutter-sm q-mt-sm">
-          <div class="col-12 col-sm-6 col-md-3" v-for="p in productosFiltrados" :key="p.id">
+        <div class="row q-col-gutter-xs q-mt-sm">
+          <div class="col-6 col-sm-4 col-md-2" v-for="p in productosFiltrados" :key="p.id">
             <q-card class="cursor-pointer product-card" flat bordered @click="agregarProducto(p)" :style="{ borderColor: p.color || '#d7dbe0' }">
-              <q-img v-if="p.fotografia" :src="imgProducto(p.fotografia)" style="height: 120px" fit="cover">
-                <div class="absolute-bottom text-caption text-center" :style="{ background: 'rgba(0,0,0,.35)' }">{{ p.nombre }}</div>
+              <q-img v-if="p.fotografia" :src="imgProducto(p.fotografia)" style="height: 72px" fit="cover">
               </q-img>
-              <div v-else class="row items-center justify-center" style="height: 120px; background: #f4f5f7;">
-                <q-icon name="inventory_2" size="38px" color="grey-7" />
+              <div v-else class="row items-center justify-center" style="height: 72px; background: #f4f5f7;">
+                <q-icon name="inventory_2" size="24px" color="grey-7" />
               </div>
-              <q-card-section class="q-pa-sm">
-                <div class="text-subtitle2 ellipsis">{{ p.nombre }}</div>
-                <div class="text-caption text-grey-7">{{ p.grupo }}</div>
-                <div class="row items-center q-mt-xs">
-                  <div class="text-weight-bold text-primary">{{ money(p.precio) }} Bs</div>
+              <q-card-section class="q-pa-xs">
+                <div class="text-caption text-weight-medium ellipsis">{{ p.nombre }}</div>
+                <div class="row items-center no-wrap">
+                  <div class="text-caption text-grey-7 ellipsis">{{ p.grupo }}</div>
                   <q-space />
+                  <div class="text-caption text-weight-bold text-primary q-ml-xs">{{ money(p.precio) }} Bs</div>
                   <div class="color-dot" :style="{ backgroundColor: p.color || '#ffffff' }" />
                 </div>
               </q-card-section>
@@ -122,8 +121,23 @@
                       :rules="[req]"
                       use-input
                       input-debounce="250"
+                      fill-input
                       @filter="filtrarClientes"
-                    />
+                    >
+                      <template #selected-item="scope">
+                        <div class="ellipsis">
+                          {{ scope.opt.nombre }} <span class="text-grey-7">CI: {{ scope.opt.ci || '-' }}</span>
+                        </div>
+                      </template>
+                      <template #option="scope">
+                        <q-item v-bind="scope.itemProps">
+                          <q-item-section>
+                            <q-item-label>{{ scope.opt.nombre }}</q-item-label>
+                            <q-item-label caption>CI: {{ scope.opt.ci || '-' }}</q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
                   </div>
                   <div class="col-auto">
                     <q-btn dense no-caps color="primary" icon="person_add" label="Nuevo" @click="dialogClienteNuevo = true" />
@@ -562,7 +576,12 @@ export default {
     filtrarClientes (val, update) {
       update(() => {
         const t = (val || '').toLowerCase()
-        this.clientes = !t ? this.clientesBackup : this.clientesBackup.filter(c => (c.nombre || '').toLowerCase().includes(t))
+        this.clientes = !t
+          ? this.clientesBackup
+          : this.clientesBackup.filter(c =>
+            (c.nombre || '').toLowerCase().includes(t) ||
+            String(c.ci || '').toLowerCase().includes(t)
+          )
       })
     },
     volverVentas () {

@@ -4,7 +4,7 @@
       <q-card-section class="row items-center q-col-gutter-sm">
         <div class="col-12 col-md-4">
           <div class="text-h6">Pagos e historial de personal</div>
-          <div class="text-caption text-grey-7">Formato consolidado para registrar adelantos, extras, descuentos y pago mensual</div>
+          <div class="text-caption text-grey-7">Lista densa del personal activo con registro en dialogo</div>
         </div>
         <div class="col-12 col-md-2">
           <q-input v-model="filters.mes" type="month" dense outlined label="Mes" />
@@ -16,6 +16,7 @@
         </div>
         <div class="col-12 col-md-3 text-right">
           <q-btn color="primary" no-caps icon="refresh" label="Actualizar" :loading="loading" @click="refreshBoard" />
+          <q-btn class="q-ml-sm" color="positive" no-caps icon="add" label="Agregar pago" @click="abrirDialogPago()" />
         </div>
       </q-card-section>
     </q-card>
@@ -51,118 +52,9 @@
           <q-td key="extras" :props="props" class="text-right text-positive">{{ money(props.row.extras) }}</q-td>
           <q-td key="descuentos" :props="props" class="text-right text-negative">{{ money(props.row.descuentos) }}</q-td>
           <q-td key="total" :props="props" class="text-right text-primary text-weight-bold">{{ money(props.row.total_calculado) }}</q-td>
-          <q-td key="caja" :props="props" style="min-width: 140px;">
-            <q-select
-              v-model="formFor(props.row.id).caja_id"
-              dense
-              outlined
-              emit-value
-              map-options
-              :options="cajaOptions"
-              label="Caja"
-              :disable="savingId === props.row.id"
-            />
-          </q-td>
-          <q-td key="fecha_pago" :props="props" style="min-width: 128px;">
-            <q-input
-              v-model="formFor(props.row.id).fecha_pago"
-              dense
-              outlined
-              type="date"
-              :disable="savingId === props.row.id"
-            />
-          </q-td>
-          <q-td key="adelanto_input" :props="props" style="min-width: 132px;">
-            <q-input
-              v-model.number="formFor(props.row.id).adelanto"
-              dense
-              outlined
-              type="number"
-              min="0"
-              step="0.01"
-              label="Adelanto"
-              :disable="savingId === props.row.id"
-            />
-          </q-td>
-          <q-td key="extra_input" :props="props" style="min-width: 120px;">
-            <q-input
-              v-model.number="formFor(props.row.id).extra"
-              dense
-              outlined
-              type="number"
-              min="0"
-              step="0.01"
-              label="Extra"
-              :disable="savingId === props.row.id"
-            />
-          </q-td>
-          <q-td key="descuento_input" :props="props" style="min-width: 138px;">
-            <q-input
-              v-model.number="formFor(props.row.id).descuento"
-              dense
-              outlined
-              type="number"
-              min="0"
-              step="0.01"
-              label="Descuento"
-              :disable="savingId === props.row.id"
-            />
-          </q-td>
-          <q-td key="observacion" :props="props" style="min-width: 180px;">
-            <q-input
-              v-model="formFor(props.row.id).observacion"
-              dense
-              outlined
-              label="Observacion"
-              :disable="savingId === props.row.id"
-            />
-          </q-td>
-          <q-td key="actions" :props="props" style="min-width: 252px;">
-            <div class="row q-col-gutter-xs">
-              <div class="col-auto">
-                <q-btn
-                  dense
-                  no-caps
-                  color="orange"
-                  label="+ Adel."
-                  :loading="savingId === props.row.id && savingTipo === 'adelanto'"
-                  @click="registrarMovimiento(props.row, 'adelanto')"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  dense
-                  no-caps
-                  color="positive"
-                  label="+ Extra"
-                  :loading="savingId === props.row.id && savingTipo === 'extra'"
-                  @click="registrarMovimiento(props.row, 'extra')"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  dense
-                  no-caps
-                  color="negative"
-                  label="+ Desc."
-                  :loading="savingId === props.row.id && savingTipo === 'descuento'"
-                  @click="registrarMovimiento(props.row, 'descuento')"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn
-                  dense
-                  no-caps
-                  color="primary"
-                  label="Pagar"
-                  :loading="savingId === props.row.id && savingTipo === 'salario'"
-                  @click="registrarSalario(props.row)"
-                />
-              </div>
-              <div class="col-auto">
-                <q-btn dense flat no-caps color="dark" icon="history" label="Historial" @click="seleccionarPersonal(props.row)" />
-              </div>
-            </div>
+          <q-td key="actions" :props="props" class="text-left" style="min-width: 170px;">
+            <q-btn dense flat no-caps color="dark" icon="visibility" label="Ver abajo" @click="seleccionarPersonal(props.row)" />
+            <q-btn dense flat no-caps color="primary" icon="add" label="Registrar" class="q-ml-xs" @click="abrirDialogPago(props.row)" />
           </q-td>
         </q-tr>
       </template>
@@ -172,10 +64,10 @@
       <q-card-section class="row items-center q-col-gutter-sm">
         <div class="col-12 col-md-5">
           <div class="text-subtitle1 text-weight-bold">
-            Historial del mes
+            Registro e historial
             <span v-if="selectedPersonal">- {{ selectedPersonal.nombre }}</span>
           </div>
-          <div class="text-caption text-grey-7">Se muestra en la misma pantalla para seguir el formato del sistema anterior</div>
+          <div class="text-caption text-grey-7">El detalle del registro se mantiene abajo y el guardado sale desde dialogo</div>
         </div>
         <div class="col-12 col-md-7">
           <div v-if="selectedSummary" class="row q-col-gutter-sm">
@@ -188,6 +80,27 @@
       </q-card-section>
       <q-separator />
       <q-card-section>
+        <div v-if="selectedPersonal" class="row q-col-gutter-sm q-mb-md">
+          <div class="col-12 col-md-2">
+            <q-input dense outlined label="Caja" :model-value="dialogCajaLabel" readonly />
+          </div>
+          <div class="col-12 col-md-2">
+            <q-input dense outlined label="Fecha" :model-value="dialogForm.fecha_pago || '-'" readonly />
+          </div>
+          <div class="col-12 col-md-2">
+            <q-input dense outlined label="Registro" :model-value="dialogRegistroLabel" readonly />
+          </div>
+          <div class="col-12 col-md-2">
+            <q-input dense outlined label="Adelanto" :model-value="dialogForm.tipo_registro === 'adelanto' ? money(dialogForm.monto) : '-'" readonly />
+          </div>
+          <div class="col-12 col-md-2">
+            <q-input dense outlined label="Registro extra" :model-value="dialogForm.tipo_registro === 'extra' ? money(dialogForm.monto) : '-'" readonly />
+          </div>
+          <div class="col-12 col-md-2">
+            <q-input dense outlined label="Registro descuento" :model-value="dialogForm.tipo_registro === 'descuento' ? money(dialogForm.monto) : '-'" readonly />
+          </div>
+        </div>
+
         <div v-if="!selectedPersonal" class="text-grey-7">Seleccione un personal para ver y gestionar su historial del mes.</div>
         <q-table
           v-else
@@ -221,21 +134,11 @@
                     <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
                     <q-item-section>Imprimir</q-item-section>
                   </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    :disable="props.row.tipo_registro !== 'salario'"
-                    @click="descargarBoleta(props.row)"
-                  >
+                  <q-item clickable v-close-popup :disable="props.row.tipo_registro !== 'salario'" @click="descargarBoleta(props.row)">
                     <q-item-section avatar><q-icon name="picture_as_pdf" color="negative" /></q-item-section>
                     <q-item-section>Boleta PDF</q-item-section>
                   </q-item>
-                  <q-item
-                    clickable
-                    v-close-popup
-                    :disable="props.row.estado === 'ANULADO'"
-                    @click="anularPago(props.row)"
-                  >
+                  <q-item clickable v-close-popup :disable="props.row.estado === 'ANULADO'" @click="anularPago(props.row)">
                     <q-item-section avatar><q-icon name="block" color="negative" /></q-item-section>
                     <q-item-section>Anular</q-item-section>
                   </q-item>
@@ -246,6 +149,83 @@
         </q-table>
       </q-card-section>
     </q-card>
+
+    <q-dialog v-model="dialogPago" persistent>
+      <q-card style="width: 680px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Registrar pago</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <q-form @submit.prevent="guardarPago">
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="dialogForm.personal_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :options="personalOptions"
+                  label="Personal"
+                  :rules="[req]"
+                />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input v-model="dialogForm.fecha_pago" dense outlined type="date" label="Fecha" :rules="[req]" />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input v-model="dialogForm.mes" dense outlined type="month" label="Mes" :rules="[req]" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-select
+                  v-model="dialogForm.tipo_registro"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :options="tipoRegistroOptions"
+                  label="Registro"
+                  :rules="[req]"
+                />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-select
+                  v-model="dialogForm.caja_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :options="cajaOptions"
+                  label="Caja"
+                  :disable="!requiereCaja"
+                />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="dialogForm.monto"
+                  dense
+                  outlined
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  :label="dialogMontoLabel"
+                  :rules="[reqMonto]"
+                />
+              </div>
+              <div class="col-12">
+                <q-input v-model="dialogForm.observacion" dense outlined label="Observacion" />
+              </div>
+            </div>
+            <div class="row justify-end q-gutter-sm q-mt-md">
+              <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
+              <q-btn no-caps color="primary" label="Guardar" type="submit" :loading="savingDialog" />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -261,14 +241,22 @@ export default {
     return {
       loading: false,
       loadingHistory: false,
-      savingId: null,
-      savingTipo: null,
+      savingDialog: false,
       personales: [],
       cajas: [],
       resumenRows: [],
       historyRows: [],
       selectedPersonalId: null,
-      quickForms: {},
+      dialogPago: false,
+      dialogForm: {
+        personal_id: null,
+        mes: currentMonth,
+        fecha_pago: today,
+        tipo_registro: 'adelanto',
+        caja_id: null,
+        monto: null,
+        observacion: ''
+      },
       filters: {
         mes: currentMonth,
         search: ''
@@ -280,12 +268,6 @@ export default {
         { name: 'extras', label: 'Extras', align: 'right' },
         { name: 'descuentos', label: 'Descuentos', align: 'right' },
         { name: 'total', label: 'Total mes', align: 'right' },
-        { name: 'caja', label: 'Caja', align: 'left' },
-        { name: 'fecha_pago', label: 'Fecha', align: 'left' },
-        { name: 'adelanto_input', label: 'Registrar adelanto', align: 'left' },
-        { name: 'extra_input', label: 'Registrar extra', align: 'left' },
-        { name: 'descuento_input', label: 'Registrar descuento', align: 'left' },
-        { name: 'observacion', label: 'Observacion', align: 'left' },
         { name: 'actions', label: 'Acciones', align: 'left' }
       ],
       historyColumns: [
@@ -302,6 +284,17 @@ export default {
   computed: {
     cajaOptions () {
       return this.cajas.map(c => ({ label: c.nombre, value: c.id }))
+    },
+    personalOptions () {
+      return this.activePersonales.map(p => ({ label: `${p.nombre} (${p.ci || '-'})`, value: p.id }))
+    },
+    tipoRegistroOptions () {
+      return [
+        { label: 'Adelanto', value: 'adelanto' },
+        { label: 'Extra', value: 'extra' },
+        { label: 'Descuento', value: 'descuento' },
+        { label: 'Pago salario', value: 'salario' }
+      ]
     },
     activePersonales () {
       return (this.personales || []).filter(p => p.estado === 'ACTIVO')
@@ -333,11 +326,38 @@ export default {
     selectedSummary () {
       if (!this.selectedPersonalId) return null
       return this.mergedRows.find(r => r.id === this.selectedPersonalId) || null
+    },
+    requiereCaja () {
+      return ['adelanto', 'salario'].includes(this.dialogForm.tipo_registro)
+    },
+    dialogMontoLabel () {
+      if (this.dialogForm.tipo_registro === 'adelanto') return 'Registro adelanto'
+      if (this.dialogForm.tipo_registro === 'extra') return 'Registro extra'
+      if (this.dialogForm.tipo_registro === 'descuento') return 'Registro descuento'
+      return 'Pago salario'
+    },
+    dialogRegistroLabel () {
+      const opt = this.tipoRegistroOptions.find(t => t.value === this.dialogForm.tipo_registro)
+      return opt?.label || '-'
+    },
+    dialogCajaLabel () {
+      const opt = this.cajaOptions.find(c => c.value === this.dialogForm.caja_id)
+      return opt?.label || '-'
     }
   },
   watch: {
     'filters.mes' () {
       this.refreshBoard()
+    },
+    'dialogForm.tipo_registro' (value) {
+      if (!this.requiereCaja) {
+        this.dialogForm.caja_id = null
+      } else if (!this.dialogForm.caja_id) {
+        this.dialogForm.caja_id = this.cajas[0]?.id || null
+      }
+      if (value === 'salario' && this.selectedPersonal) {
+        this.dialogForm.monto = Number(this.selectedPersonal.salario || 0)
+      }
     }
   },
   async mounted () {
@@ -345,6 +365,12 @@ export default {
     await this.refreshBoard()
   },
   methods: {
+    req (v) {
+      return !!v || 'Campo requerido'
+    },
+    reqMonto (v) {
+      return Number(v || 0) > 0 || 'Ingrese un monto valido'
+    },
     money (n) {
       return Number(n || 0).toFixed(2) + ' Bs'
     },
@@ -358,26 +384,6 @@ export default {
       if (tipo === 'descuento') return 'negative'
       return 'grey-7'
     },
-    defaultQuickForm () {
-      return {
-        caja_id: this.cajas[0]?.id || null,
-        fecha_pago: today,
-        adelanto: null,
-        extra: null,
-        descuento: null,
-        observacion: ''
-      }
-    },
-    formFor (personalId) {
-      if (!this.quickForms[personalId]) {
-        this.quickForms[personalId] = this.defaultQuickForm()
-      }
-      return this.quickForms[personalId]
-    },
-    resetQuickField (personalId, tipo) {
-      const form = this.formFor(personalId)
-      form[tipo] = null
-    },
     async loadRefs () {
       const [personalesRes, cajasRes] = await Promise.all([
         this.$axios.get('personales'),
@@ -385,6 +391,7 @@ export default {
       ])
       this.personales = personalesRes.data || []
       this.cajas = cajasRes.data || []
+      if (!this.dialogForm.caja_id) this.dialogForm.caja_id = this.cajas[0]?.id || null
     },
     async refreshBoard () {
       this.loading = true
@@ -393,11 +400,9 @@ export default {
           params: { mes: this.filters.mes }
         })
         this.resumenRows = resumenRes.data || []
-
         if (!this.selectedPersonalId && this.filteredRows.length) {
           this.selectedPersonalId = this.filteredRows[0].id
         }
-
         if (this.selectedPersonalId) {
           await this.loadHistory(this.selectedPersonalId)
         }
@@ -410,6 +415,25 @@ export default {
     async seleccionarPersonal (row) {
       this.selectedPersonalId = row.id
       await this.loadHistory(row.id)
+    },
+    abrirDialogPago (row = null) {
+      const target = row || this.selectedPersonal || this.filteredRows[0] || null
+      if (!target) {
+        this.$alert.error('No hay personal activo para registrar pago')
+        return
+      }
+      this.selectedPersonalId = target.id
+      this.dialogForm = {
+        personal_id: target.id,
+        mes: this.filters.mes,
+        fecha_pago: today,
+        tipo_registro: 'adelanto',
+        caja_id: this.cajas[0]?.id || null,
+        monto: null,
+        observacion: ''
+      }
+      this.dialogPago = true
+      this.loadHistory(target.id)
     },
     async loadHistory (personalId) {
       this.loadingHistory = true
@@ -427,64 +451,39 @@ export default {
         this.loadingHistory = false
       }
     },
-    async registrarMovimiento (row, tipo) {
-      const form = this.formFor(row.id)
-      const monto = Number(form[tipo] || 0)
-      if (monto <= 0) {
-        this.$alert.error(`Ingrese un monto valido para ${tipo}`)
+    async guardarPago () {
+      if (this.requiereCaja && !this.dialogForm.caja_id) {
+        this.$alert.error('Seleccione una caja')
         return
       }
-      const payload = {
-        personal_id: row.id,
-        mes: this.filters.mes,
-        tipo_registro: tipo,
-        monto,
-        observacion: form.observacion || null,
-        fecha_pago: form.fecha_pago || today,
-        caja_id: tipo === 'adelanto' ? form.caja_id : null
-      }
-
-      this.savingId = row.id
-      this.savingTipo = tipo
+      this.savingDialog = true
       try {
+        const personal = this.activePersonales.find(p => p.id === this.dialogForm.personal_id)
+        const payload = {
+          personal_id: this.dialogForm.personal_id,
+          mes: this.dialogForm.mes,
+          fecha_pago: this.dialogForm.fecha_pago,
+          tipo_registro: this.dialogForm.tipo_registro,
+          caja_id: this.requiereCaja ? this.dialogForm.caja_id : null,
+          observacion: this.dialogForm.observacion || null
+        }
+
+        if (this.dialogForm.tipo_registro === 'salario') {
+          payload.sueldo = Number(personal?.salario || this.dialogForm.monto || 0)
+        } else {
+          payload.monto = Number(this.dialogForm.monto || 0)
+        }
+
         await this.$axios.post('personal-pagos', payload)
         this.$alert.success('Registro guardado')
-        this.resetQuickField(row.id, tipo)
-        await this.seleccionarPersonal(row)
+        this.dialogPago = false
+        this.selectedPersonalId = this.dialogForm.personal_id
         await this.refreshBoard()
+        await this.loadHistory(this.dialogForm.personal_id)
       } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo guardar el movimiento')
+        this.$alert.error(e.response?.data?.message || 'No se pudo guardar el pago')
       } finally {
-        this.savingId = null
-        this.savingTipo = null
-      }
-    },
-    async registrarSalario (row) {
-      const form = this.formFor(row.id)
-      if (!form.caja_id) {
-        this.$alert.error('Seleccione una caja para pagar salario')
-        return
-      }
-      this.savingId = row.id
-      this.savingTipo = 'salario'
-      try {
-        await this.$axios.post('personal-pagos', {
-          personal_id: row.id,
-          caja_id: form.caja_id,
-          mes: this.filters.mes,
-          tipo_registro: 'salario',
-          sueldo: Number(row.salario || 0),
-          observacion: form.observacion || null,
-          fecha_pago: form.fecha_pago || today
-        })
-        this.$alert.success('Pago de salario registrado')
-        await this.seleccionarPersonal(row)
-        await this.refreshBoard()
-      } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo registrar salario')
-      } finally {
-        this.savingId = null
-        this.savingTipo = null
+        this.savingDialog = false
       }
     },
     async descargarBoleta (row) {
@@ -515,9 +514,7 @@ export default {
         try {
           await this.$axios.post(`personal-pagos/${row.id}/anular`)
           this.$alert.success('Pago anulado')
-          if (this.selectedPersonalId) {
-            await this.loadHistory(this.selectedPersonalId)
-          }
+          if (this.selectedPersonalId) await this.loadHistory(this.selectedPersonalId)
           await this.refreshBoard()
         } catch (e) {
           this.$alert.error(e.response?.data?.message || 'No se pudo anular el pago')

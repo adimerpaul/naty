@@ -9,17 +9,17 @@ require_once __DIR__ . '/datos_generales.php';
 
 
 //3573986
-$siat = obtenerDatosSiat(0);
+$siat = obtenerDatosSiat(1);
 $codigoPuntoVenta = $siat['codigoPuntoVenta'];
 $codigoControl = $siat['codigoControl'];
 $cufd = $siat['cufd'];
 $cuis = $siat['cuis'];
 
 
-$cantidad=1;
-$codigoMotivoEvento=4;
-$h="06";
-$m="23";
+$cantidad=500;
+$codigoMotivoEvento=7;
+$h="05";
+$m="14";
 $s="00";
 
 //$codigoEvento=3629231;
@@ -46,7 +46,7 @@ $tipoFacturaDocumento=1;
 //$temision=1; //1 online, 2 offline, 3 masiva
 $cdf=1; // 1 con credito fiscal 2 sin credito fiscal 3 nota credito debito
 $nf=1;
-//$cafc="1011FCEF12A2C";
+$cafc="10194129FA5C";
 
 for ($y=1;$y<=10;$y++){
     deleteFile();
@@ -120,7 +120,7 @@ for ($y=1;$y<=10;$y++){
         <montoGiftCard xsi:nil='true'/>
         <descuentoAdicional>1</descuentoAdicional>
         <codigoExcepcion xsi:nil='true'/>
-        <cafc xsi:nil='true'/>
+        <cafc>$cafc</cafc>
         <leyenda>Ley N° 453: Tienes derecho a recibir información sobre las características y contenidos de los
             servicios que utilices.
         </leyenda>
@@ -196,7 +196,7 @@ for ($y=1;$y<=10;$y++){
             "hashArchivo"=>$hashArchivo,
             "cantidadFacturas"=>$cantidad,
             "codigoEvento"=>$codigoEvento,
-//            "cafc"=>$cafc,
+            "cafc"=>$cafc,
         ]
     ]);
     var_dump($result);
