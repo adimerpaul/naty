@@ -130,8 +130,8 @@ export default {
       historialRows: [],
       filters: {
         month: null,
-        include_past_days: 30,
-        include_next_days: 60
+        include_past_days: 15,
+        include_next_days: 15
       },
       columns: [
         { name: 'actions', label: '', field: 'id', align: 'left' },

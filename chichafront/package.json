@@ -1,0 +1,56 @@
+{
+  "name": "Chicheria",
+  "version": "0.0.1",
+  "description": "A Quasar Framework app",
+  "productName": "Chicheria doña naty",
+  "author": "adimerpaul <adimer101@gmail.com>",
+  "private": true,
+  "scripts": {
+    "lint": "eslint --ext .js,.vue ./",
+    "test": "echo \"No test specified\" && exit 0"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^3.1.2",
+    "@capacitor/core": "^3.1.2",
+    "@quasar/extras": "^1.0.0",
+    "axios": "^0.21.1",
+    "console": "^0.7.2",
+    "conversor-numero-a-letras-es-ar": "^1.0.3",
+    "core-js": "^3.6.5",
+    "datatables.net-buttons-dt": "^1.7.1",
+    "datatables.net-dt": "^1.11.3",
+    "jquery": "^3.6.0",
+    "json-as-xlsx": "^2.5.6",
+    "jspdf": "^2.3.1",
+    "jszip": "^3.7.1",
+    "moment": "^2.29.4",
+    "pdfmake": "^0.2.4",
+    "quasar": "^2.0.0",
+    "vuex": "^4.0.1"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.13.14",
+    "@quasar/app": "^3.0.0",
+    "eslint": "^7.14.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-vue": "^7.0.0",
+    "eslint-webpack-plugin": "^2.4.0",
+    "workbox-webpack-plugin": "^6.6.0"
+  },
+  "browserslist": [
+    "last 10 Chrome versions",
+    "last 10 Firefox versions",
+    "last 4 Edge versions",
+    "last 7 Safari versions",
+    "last 8 Android versions",
+    "last 8 ChromeAndroid versions",
+    "last 8 FirefoxAndroid versions",
+    "last 10 iOS versions",
+    "last 5 Opera versions"
+  ],
+  "engines": {
+    "node": ">= 12.22.1",
+    "npm": ">= 6.13.4",
+    "yarn": ">= 1.21.1"
+  }
+}

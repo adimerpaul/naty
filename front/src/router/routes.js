@@ -3,7 +3,7 @@ const routes = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue'), meta: {requiresAuth: true} },
+      { path: '', component: () => import('pages/cumpleanios/Cumpleanios.vue'), meta: {requiresAuth: true} },
       {
         path: '/usuarios',
         component: () => import('pages/usuarios/Usuarios.vue'),
@@ -50,11 +50,11 @@ const routes = [
         component: () => import('pages/personal/HistorialPagosPersonal.vue'),
         meta: { requiresAuth: true }
       },
-      {
-        path: '/cumpleanios',
-        component: () => import('pages/cumpleanios/Cumpleanios.vue'),
-        meta: { requiresAuth: true }
-      },
+      // {
+      //   path: '/cumpleanios',
+      //   component: () => import('pages/cumpleanios/Cumpleanios.vue'),
+      //   meta: { requiresAuth: true }
+      // },
       {
         path: '/ventas/:tipo(detalle|local)',
         component: () => import('pages/ventas/Ventas.vue'),
