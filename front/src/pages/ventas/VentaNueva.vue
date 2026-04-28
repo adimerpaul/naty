@@ -943,8 +943,8 @@ export default {
         this.$alert.error('La cantidad supera el inventario disponible')
         return
       }
-      if (Number(this.garantia.efectivo || 0) <= 0) {
-        this.$alert.error(this.garantia.tipo === 'venta' ? 'Debe registrar monto efectivo para venta de material' : 'Debe registrar fisico recibido')
+      if (this.garantia.tipo === 'venta' && Number(this.garantia.efectivo || 0) <= 0) {
+        this.$alert.error('Debe registrar monto efectivo para venta de material')
         return
       }
       this.loadingGarantia = true
