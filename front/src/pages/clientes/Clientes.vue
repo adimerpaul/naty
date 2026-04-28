@@ -334,9 +334,9 @@ export default {
       columns: [
         { name: 'actions', label: 'Acciones', align: 'left' },
         { name: 'nombre', label: 'Nombre', align: 'left', field: 'nombre' },
-        { name: 'local', label: 'Local', align: 'left', field: 'local' },
+        // { name: 'local', label: 'Local', align: 'left', field: 'local' },
         { name: 'titular', label: 'Titular', align: 'left', field: 'titular' },
-        { name: 'tipo', label: 'Tipo', align: 'left', field: 'tipo' },
+        // { name: 'tipo', label: 'Tipo', align: 'left', field: 'tipo' },
         { name: 'ci', label: 'CI', align: 'left', field: 'ci' },
         { name: 'telefono', label: 'Telefono', align: 'left', field: 'telefono' },
         { name: 'direccion', label: 'Direccion', align: 'left', field: 'direccion' },
