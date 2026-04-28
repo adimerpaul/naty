@@ -7,6 +7,7 @@
             <q-btn flat dense icon="arrow_back" no-caps label="Volver a ventas" @click="volverVentas" />
             <div class="text-h6">{{ tituloPagina }}</div>
             <q-space />
+            <q-input v-model="form.fecha_venta" dense outlined type="date" label="Fecha venta" class="venta-date-input" />
             <q-input v-model="search" dense outlined placeholder="Buscar producto..." style="width: 250px">
               <template #append><q-icon name="search" /></template>
             </q-input>
@@ -90,8 +91,113 @@
           <q-separator />
           <q-card-section class="row items-center">
             <div class="text-subtitle1 text-weight-bold">Total: {{ money(total) }} Bs</div>
-            <q-space />
-            <q-btn color="positive" no-caps icon="point_of_sale" label="Realizar venta" :disable="!carrito.length" @click="dialogVenta = true" />
+          </q-card-section>
+        </q-card>
+
+        <q-card flat bordered class="q-mt-md">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-bold">Datos de la venta</div>
+          </q-card-section>
+          <q-separator />
+          <q-card-section>
+            <q-form ref="formVenta" @submit.prevent="guardarVenta">
+              <div class="row q-col-gutter-sm q-mb-sm">
+                <div class="col-12">
+                  <div class="row items-center q-col-gutter-sm">
+                    <div class="col">
+                      <q-select
+                        v-model="form.cliente_id"
+                        label="Cliente"
+                        dense outlined
+                        emit-value map-options
+                        option-label="nombre"
+                        option-value="id"
+                        :options="clientes"
+                        :rules="[req]"
+                        use-input
+                        input-debounce="250"
+                        fill-input
+                        @filter="filtrarClientes"
+                        clearable
+                      >
+                        <template #selected-item="scope">
+<!--                        <div class="ellipsis">-->
+<!--                          {{ scope.opt.nombre }} <span class="text-grey-7">CI: {{ scope.opt.ci || '-' }}</span>-->
+<!--                        </div>-->
+                        </template>
+                        <template #option="scope">
+                          <q-item v-bind="scope.itemProps">
+                            <q-item-section>
+                              <q-item-label>{{ scope.opt.nombre }}</q-item-label>
+                              <q-item-label caption>CI: {{ scope.opt.ci || '-' }}</q-item-label>
+                            </q-item-section>
+                          </q-item>
+                        </template>
+                      </q-select>
+                    </div>
+                    <div class="col-auto">
+                      <q-btn dense no-caps color="primary" icon="person_add" label="Nuevo" @click="dialogClienteNuevo = true" />
+                    </div>
+                  </div>
+                </div>
+<!--              <div class="col-12 col-md-4">-->
+<!--                <q-select-->
+<!--                  v-model="form.tipo_pago"-->
+<!--                  label="Pago"-->
+<!--                  dense outlined-->
+<!--                  emit-value map-options-->
+<!--                  :options="[-->
+<!--                    { label: 'Contado', value: 'contado' },-->
+<!--                    { label: 'Credito', value: 'credito' }-->
+<!--                  ]"-->
+<!--                />-->
+<!--              </div>-->
+                <div class="col-12 col-sm-6">
+                  <q-select
+                    v-model="form.metodo_pago"
+                    label="Metodo"
+                    dense outlined
+                    emit-value map-options
+                    :options="[
+                      { label: 'Efectivo', value: 'efectivo' },
+                      { label: 'QR', value: 'qr' }
+                    ]"
+                  />
+                </div>
+                <div class="col-12 col-sm-6" v-if="form.tipo_pago === 'credito'">
+                  <q-input v-model.number="form.pago_inicial" type="number" min="0" :max="total" label="Pago inicial" dense outlined />
+                </div>
+                <div class="col-12">
+                  <q-checkbox v-model="form.facturado" label="Facturado SIAT" dense />
+                </div>
+                <div class="col-12">
+                  <q-input v-model="form.observacion" dense outlined type="textarea" autogrow label="Observacion" />
+                </div>
+              </div>
+
+              <q-separator class="q-my-sm" />
+
+              <q-markup-table dense flat bordered class="q-mt-sm">
+                <tbody>
+                  <tr>
+                    <td class="text-right text-weight-bold" style="width: 70%">Total</td>
+                    <td class="text-right text-weight-bold">{{ money(total) }} Bs</td>
+                  </tr>
+                  <tr v-if="form.tipo_pago === 'credito'">
+                    <td class="text-right">Pago inicial</td>
+                    <td class="text-right">{{ money(form.pago_inicial || 0) }} Bs</td>
+                  </tr>
+                  <tr v-if="form.tipo_pago === 'credito'">
+                    <td class="text-right">Saldo</td>
+                    <td class="text-right">{{ money(total - Number(form.pago_inicial || 0)) }} Bs</td>
+                  </tr>
+                </tbody>
+              </q-markup-table>
+
+              <div class="row justify-end q-gutter-sm q-mt-md">
+                <q-btn no-caps color="positive" icon="point_of_sale" label="Guardar venta" type="submit" :disable="!carrito.length" :loading="loadingGuardar" />
+              </div>
+            </q-form>
           </q-card-section>
         </q-card>
       </div>
@@ -123,7 +229,7 @@
           :columns="historialCols"
           row-key="id"
           :loading="loadingHistorial"
-          :pagination="{ rowsPerPage: 10 }"
+          :rows-per-page-options="[0]"
         >
           <template #body-cell-fecha="props">
             <q-td :props="props">{{ formatDateOnly(props.row.fecha) }} {{ props.row.hora ? props.row.hora.slice(0, 5) : '' }}</q-td>
@@ -163,147 +269,6 @@
         </q-table>
       </q-card-section>
     </q-card>
-
-    <q-dialog v-model="dialogVenta">
-      <q-card style="width: 840px; max-width: 96vw;">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-subtitle1 text-weight-bold">Confirmar venta</div>
-          <q-space />
-          <q-btn flat round dense icon="close" v-close-popup />
-        </q-card-section>
-        <q-card-section>
-          <q-form ref="formVenta" @submit.prevent="guardarVenta">
-            <div class="row q-col-gutter-sm q-mb-sm">
-              <div class="col-12 col-md-8">
-                <div class="row items-center q-col-gutter-sm">
-                  <div class="col">
-                    <q-select
-                      v-model="form.cliente_id"
-                      label="Cliente"
-                      dense outlined
-                      emit-value map-options
-                      option-label="nombre"
-                      option-value="id"
-                      :options="clientes"
-                      :rules="[req]"
-                      use-input
-                      input-debounce="250"
-                      fill-input
-                      @filter="filtrarClientes"
-                    >
-                      <template #selected-item="scope">
-                        <div class="ellipsis">
-                          {{ scope.opt.nombre }} <span class="text-grey-7">CI: {{ scope.opt.ci || '-' }}</span>
-                        </div>
-                      </template>
-                      <template #option="scope">
-                        <q-item v-bind="scope.itemProps">
-                          <q-item-section>
-                            <q-item-label>{{ scope.opt.nombre }}</q-item-label>
-                            <q-item-label caption>CI: {{ scope.opt.ci || '-' }}</q-item-label>
-                          </q-item-section>
-                        </q-item>
-                      </template>
-                    </q-select>
-                  </div>
-                  <div class="col-auto">
-                    <q-btn dense no-caps color="primary" icon="person_add" label="Nuevo" @click="dialogClienteNuevo = true" />
-                  </div>
-                </div>
-              </div>
-              <div class="col-12 col-md-4">
-                <q-select
-                  v-model="form.tipo_pago"
-                  label="Pago"
-                  dense outlined
-                  emit-value map-options
-                  :options="[
-                    { label: 'Contado', value: 'contado' },
-                    { label: 'Credito', value: 'credito' }
-                  ]"
-                />
-              </div>
-            </div>
-
-            <div class="row q-col-gutter-sm q-mb-sm">
-              <div class="col-12 col-md-4">
-                <q-input v-model="form.fecha_venta" type="date" label="Fecha venta" dense outlined />
-              </div>
-              <div class="col-12 col-md-4">
-                <q-select
-                  v-model="form.metodo_pago"
-                  label="Metodo"
-                  dense outlined
-                  emit-value map-options
-                  :options="[
-                    { label: 'Efectivo', value: 'efectivo' },
-                    { label: 'QR', value: 'qr' }
-                  ]"
-                />
-              </div>
-              <div class="col-12 col-md-4" v-if="form.tipo_pago === 'credito'">
-                <q-input v-model.number="form.pago_inicial" type="number" min="0" :max="total" label="Pago inicial" dense outlined />
-              </div>
-              <div class="col-12 col-md-4">
-                <q-checkbox v-model="form.facturado" label="Facturado SIAT" dense />
-              </div>
-              <div class="col-12 col-md-8">
-                <q-input v-model="form.observacion" dense outlined type="textarea" autogrow label="Observacion" />
-              </div>
-            </div>
-
-            <q-separator class="q-my-sm" />
-
-            <q-table
-              dense
-              flat
-              bordered
-              :rows="carrito"
-              :columns="resumenCols"
-              row-key="uid"
-              hide-pagination
-              :pagination="{ rowsPerPage: 0 }"
-            >
-              <template #body-cell-foto="props">
-                <q-td :props="props">
-                  <q-avatar rounded size="30px">
-                    <q-img v-if="props.row.fotografia" :src="imgProducto(props.row.fotografia)" />
-                    <q-icon v-else name="inventory_2" />
-                  </q-avatar>
-                </q-td>
-              </template>
-              <template #body-cell-precio="props">
-                <q-td :props="props" class="text-right">{{ money(props.row.precio) }}</q-td>
-              </template>
-              <template #body-cell-subtotal="props">
-                <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.subtotal) }}</q-td>
-              </template>
-            </q-table>
-            <q-markup-table dense flat bordered class="q-mt-sm">
-              <tbody>
-                <tr>
-                  <td class="text-right text-weight-bold" style="width: 70%">Total</td>
-                  <td class="text-right text-weight-bold">{{ money(total) }} Bs</td>
-                </tr>
-                <tr v-if="form.tipo_pago === 'credito'">
-                  <td class="text-right">Pago inicial</td>
-                  <td class="text-right">{{ money(form.pago_inicial || 0) }} Bs</td>
-                </tr>
-                <tr v-if="form.tipo_pago === 'credito'">
-                  <td class="text-right">Saldo</td>
-                  <td class="text-right">{{ money(total - Number(form.pago_inicial || 0)) }} Bs</td>
-                </tr>
-              </tbody>
-            </q-markup-table>
-
-            <div class="row justify-end q-gutter-sm q-mt-md">
-              <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
-              <q-btn no-caps color="primary" label="Guardar venta" type="submit" :loading="loadingGuardar" />
-            </div>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
 
     <q-dialog v-model="dialogClienteNuevo">
       <q-card style="width: 760px; max-width: 96vw;">
@@ -551,7 +516,6 @@ export default {
       carrito: [],
       search: '',
       filtroGrupo: 'todos',
-      dialogVenta: false,
       dialogClienteNuevo: false,
       dialogGarantiaAsk: false,
       dialogGarantia: false,
@@ -598,13 +562,6 @@ export default {
         fisico: '',
         observacion: ''
       },
-      resumenCols: [
-        { name: 'foto', label: '', field: 'fotografia', align: 'left' },
-        { name: 'nombre', label: 'Producto / Concepto', field: 'nombre', align: 'left' },
-        { name: 'precio', label: 'Precio', field: 'precio', align: 'right' },
-        { name: 'cantidad', label: 'Cant.', field: 'cantidad', align: 'right' },
-        { name: 'subtotal', label: 'Subtotal', field: 'subtotal', align: 'right' }
-      ],
       historialCols: [
         { name: 'actions', label: '', field: 'actions', align: 'left' },
         { name: 'id', label: 'ID', field: 'id', align: 'left' },
@@ -812,7 +769,6 @@ export default {
         } else {
           this.$alert.success('Venta registrada')
         }
-        this.dialogVenta = false
         this.dialogGarantiaAsk = true
         this.cargarHistorial()
       } catch (e) {
@@ -930,10 +886,19 @@ export default {
   transform: translateY(-2px);
   box-shadow: 0 8px 18px rgba(0,0,0,.1);
 }
+.venta-date-input {
+  width: 170px;
+  min-width: 160px;
+}
 .color-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
   border: 1px solid rgba(0,0,0,.2);
+}
+@media (max-width: 599px) {
+  .venta-date-input {
+    width: 100%;
+  }
 }
 </style>

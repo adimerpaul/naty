@@ -290,6 +290,10 @@
                 <q-item-section avatar><q-icon name="point_of_sale" size="xs" color="primary" /></q-item-section>
                 <q-item-section><q-item-label>Venta detalle</q-item-label></q-item-section>
               </q-item>
+              <q-item dense to="/ventas/detalle/nueva" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
+                <q-item-section avatar><q-icon name="add_shopping_cart" size="xs" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Crear venta detalle</q-item-label></q-item-section>
+              </q-item>
               <q-item dense to="/deudas/detalle" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
                 <q-item-section avatar><q-icon name="payments" size="xs" color="primary" /></q-item-section>
                 <q-item-section><q-item-label>Deuda detalle</q-item-label></q-item-section>
@@ -331,6 +335,10 @@
               <q-item dense to="/ventas/local" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
                 <q-item-section avatar><q-icon name="receipt_long" size="xs" color="primary" /></q-item-section>
                 <q-item-section><q-item-label>Venta local</q-item-label></q-item-section>
+              </q-item>
+              <q-item dense to="/ventas/local/nueva" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
+                <q-item-section avatar><q-icon name="add_shopping_cart" size="xs" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Crear venta local</q-item-label></q-item-section>
               </q-item>
               <q-item dense to="/deudas/local" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
                 <q-item-section avatar><q-icon name="account_balance" size="xs" color="primary" /></q-item-section>
@@ -454,8 +462,8 @@ export default {
     isSubmenuActive (section) {
       const path = this.$route.path
       if (section === 'personal') return path.startsWith('/personal')
-      if (section === 'detalle') return path.endsWith('/detalle')
-      if (section === 'local') return path.endsWith('/local')
+      if (section === 'detalle') return path.endsWith('/detalle') || path.includes('/detalle/')
+      if (section === 'local') return path.endsWith('/local') || path.includes('/local/')
       return false
     },
     hasPermission (perm) {

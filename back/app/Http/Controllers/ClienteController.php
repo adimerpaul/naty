@@ -30,7 +30,7 @@ class ClienteController extends Controller
             'titular' => 'nullable|string|max:255',
             'tipo' => ['nullable', Rule::in(['PROPIETARIO', 'INQUILINO'])],
             'tipo_cliente' => ['required', Rule::in(['detalle', 'local'])],
-            'ci' => 'nullable|string|max:255|unique:clientes,ci',
+            'ci' => 'nullable|string|max:255',
             'telefono' => 'nullable|string|max:255',
             'direccion' => 'nullable|string|max:255',
             'fechanac' => 'nullable|date',
@@ -43,6 +43,15 @@ class ClienteController extends Controller
             'lng' => 'nullable|numeric|between:-180,180',
             'estado' => 'nullable|boolean',
         ]);
+        $ci = $validated['ci'] ?? null;
+        if (!empty($ci)) {
+            $existeCi = Cliente::where('ci', $ci)
+                ->where('tipo_cliente', $validated['tipo_cliente'])
+                ->exists();
+            if ($existeCi) {
+                return response()->json(['message' => 'El CI ya está registrado para otro cliente'], 422);
+            }
+        }
 
         $this->applyClienteRules($validated);
         return Cliente::create($validated);

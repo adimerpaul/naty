@@ -53,7 +53,7 @@ class VentaController extends Controller
                 $q->whereDate('fecha_venta', '>=', $request->date_from)
                     ->orWhere(function ($q2) use ($request) {
                         $q2->whereNull('fecha_venta')
-                            ->where('created_at', '>=', $request->date_from . ' 00:00:00');
+                            ->where('created_at', '>=', $request->date_from.' 00:00:00');
                     });
             });
         }
@@ -62,18 +62,20 @@ class VentaController extends Controller
                 $q->whereDate('fecha_venta', '<=', $request->date_to)
                     ->orWhere(function ($q2) use ($request) {
                         $q2->whereNull('fecha_venta')
-                            ->where('created_at', '<=', $request->date_to . ' 23:59:59');
+                            ->where('created_at', '<=', $request->date_to.' 23:59:59');
                     });
             });
         }
 
         $ventas = $query->get();
+
         return $ventas->map(fn (Venta $v) => $this->withResumen($v));
     }
 
     public function show(Venta $venta)
     {
         $venta->load(['caja', 'detalles', 'pagos', 'user', 'prestamos.inventario']);
+
         return $this->withResumen($venta);
     }
 
@@ -84,7 +86,7 @@ class VentaController extends Controller
             'venta' => $venta,
         ])->setPaper('letter', 'portrait');
 
-        return $pdf->download('venta-' . $venta->id . '.pdf');
+        return $pdf->download('venta-'.$venta->id.'.pdf');
     }
 
     public function update(Request $request, Venta $venta)
@@ -102,6 +104,7 @@ class VentaController extends Controller
         ]);
 
         $venta->load(['caja', 'detalles', 'pagos', 'user']);
+
         return $this->withResumen($venta);
     }
 
@@ -127,121 +130,129 @@ class VentaController extends Controller
             'items.*.precio' => 'required|numeric|min:0',
         ]);
 
-        $venta = DB::transaction(function () use ($validated, $request) {
-            $cliente = null;
-            if (!empty($validated['cliente_id'])) {
-                $cliente = Cliente::find($validated['cliente_id']);
-            }
-
-            $cajaId = (int) ($validated['caja_id'] ?? 1);
-            $tipoMovimiento = $validated['tipo_movimiento'] ?? 'ingreso';
-
-            $montoAfectaCaja = $this->montoInicialQueAfectaCaja($validated);
-            if ($tipoMovimiento === 'egreso' && $montoAfectaCaja > 0) {
-                $saldoDisponible = $this->saldoCajaDisponible($cajaId);
-                if ($montoAfectaCaja > $saldoDisponible) {
-                    throw ValidationException::withMessages([
-                        'monto' => 'Fondos insuficientes en caja. Disponible: ' . round($saldoDisponible, 2) . ' Bs',
-                    ]);
-                }
-            }
-
-            $venta = Venta::create([
-                'caja_id' => $cajaId, // Caja General por defecto
-                'cliente_id' => $cliente?->id,
-                'user_id' => $request->user()->id ?? null,
-                'tipo_venta' => $validated['tipo_venta'],
-                'tipo_movimiento' => $tipoMovimiento,
-                'tipo_pago' => $validated['tipo_pago'],
-                'estado' => 'ACTIVA',
-                'fecha_venta' => $validated['fecha_venta'] ?? now()->toDateString(),
-                'cliente_nombre' => $cliente?->nombre,
-                'cliente_telefono' => $cliente?->telefono,
-                'cliente_direccion' => $cliente?->direccion,
-                'observacion' => $this->buildObservacion($validated),
-                'total' => 0,
-                'facturado' => (bool) ($validated['facturado'] ?? false),
-                'factura_estado' => !empty($validated['facturado']) ? 'PENDIENTE' : 'SIN_GESTION',
-                'factura_error' => null,
-            ]);
-
-            $items = $validated['items'] ?? [];
-            $total = 0.0;
-            if (!empty($items)) {
-                foreach ($items as $item) {
-                    $producto = null;
-                    if (!empty($item['producto_id'])) {
-                        $producto = Producto::find($item['producto_id']);
-                    }
-                    $cantidad = (float) $item['cantidad'];
-                    $precio = (float) $item['precio'];
-                    $subtotal = round($precio * $cantidad, 2);
-                    $total += $subtotal;
-                    $nombre = $producto?->nombre ?: trim((string) ($item['producto_nombre'] ?? 'Concepto manual'));
-                    if ($nombre === '') {
-                        $nombre = 'Concepto manual';
-                    }
-
-                    VentaDetalle::create([
-                        'venta_id' => $venta->id,
-                        'producto_id' => $producto?->id,
-                        'user_id' => $request->user()->id ?? null,
-                        'producto_nombre' => $nombre,
-                        'precio' => $precio,
-                        'cantidad' => $cantidad,
-                        'subtotal' => $subtotal,
-                        'estado' => true,
-                    ]);
-                }
-            } else {
-                $total = round((float) ($validated['monto'] ?? 0), 2);
-                if ($total <= 0) {
-                    throw ValidationException::withMessages([
-                        'monto' => 'Debe enviar items o un monto para ingreso/egreso',
-                    ]);
-                }
-            }
-
-            $venta->update(['total' => round($total, 2)]);
-
-            if ($validated['tipo_pago'] === 'contado') {
-                Pago::create([
-                    'venta_id' => $venta->id,
-                    'user_id' => $request->user()->id ?? null,
-                    'nro_cuota' => 1,
-                    'monto' => round($total, 2),
-                    'fecha_programada' => now()->toDateString(),
-                    'fecha_pago' => now(),
-                    'metodo' => $validated['metodo_pago'] ?? 'efectivo',
-                    'estado' => 'PAGADO',
-                ]);
-            } else {
-                $this->crearPlanCuotas($venta, $request, $validated, round($total, 2));
-            }
-
-            $venta->load(['caja', 'detalles', 'pagos', 'user', 'cliente']);
-            return $this->withResumen($venta);
-        });
-
         $resultadoFacturacion = null;
-        if ($venta->facturado) {
-            try {
-                $resultadoFacturacion = app(SiatService::class)->facturarVenta($venta);
-                $venta->refresh()->load(['caja', 'detalles', 'pagos', 'user', 'cliente', 'prestamos.inventario']);
-                $venta = $this->withResumen($venta);
-            } catch (\Throwable $e) {
-                Venta::query()->whereKey($venta->id)->update([
-                    'factura_estado' => 'ERROR',
-                    'factura_error' => $e->getMessage(),
+
+        try {
+            $venta = DB::transaction(function () use ($validated, $request, &$resultadoFacturacion) {
+                $cliente = null;
+                if (! empty($validated['cliente_id'])) {
+                    $cliente = Cliente::find($validated['cliente_id']);
+                }
+
+                $cajaId = (int) ($validated['caja_id'] ?? 1);
+                $tipoMovimiento = $validated['tipo_movimiento'] ?? 'ingreso';
+
+                $montoAfectaCaja = $this->montoInicialQueAfectaCaja($validated);
+                if ($tipoMovimiento === 'egreso' && $montoAfectaCaja > 0) {
+                    $saldoDisponible = $this->saldoCajaDisponible($cajaId);
+                    if ($montoAfectaCaja > $saldoDisponible) {
+                        throw ValidationException::withMessages([
+                            'monto' => 'Fondos insuficientes en caja. Disponible: '.round($saldoDisponible, 2).' Bs',
+                        ]);
+                    }
+                }
+
+                $venta = Venta::create([
+                    'caja_id' => $cajaId, // Caja General por defecto
+                    'cliente_id' => $cliente?->id,
+                    'user_id' => $request->user()->id ?? null,
+                    'tipo_venta' => $validated['tipo_venta'],
+                    'tipo_movimiento' => $tipoMovimiento,
+                    'tipo_pago' => $validated['tipo_pago'],
+                    'estado' => 'ACTIVA',
+                    'fecha_venta' => $validated['fecha_venta'] ?? now()->toDateString(),
+                    'cliente_nombre' => $cliente?->nombre,
+                    'cliente_telefono' => $cliente?->telefono,
+                    'cliente_direccion' => $cliente?->direccion,
+                    'observacion' => $this->buildObservacion($validated),
+                    'total' => 0,
+                    'facturado' => (bool) ($validated['facturado'] ?? false),
+                    'factura_estado' => ! empty($validated['facturado']) ? 'PENDIENTE' : 'SIN_GESTION',
+                    'factura_error' => null,
                 ]);
-                $venta->refresh()->load(['caja', 'detalles', 'pagos', 'user', 'cliente', 'prestamos.inventario']);
+
+                $items = $validated['items'] ?? [];
+                $total = 0.0;
+                if (! empty($items)) {
+                    foreach ($items as $item) {
+                        $producto = null;
+                        if (! empty($item['producto_id'])) {
+                            $producto = Producto::find($item['producto_id']);
+                        }
+                        $cantidad = (float) $item['cantidad'];
+                        $precio = (float) $item['precio'];
+                        $subtotal = round($precio * $cantidad, 2);
+                        $total += $subtotal;
+                        $nombre = $producto?->nombre ?: trim((string) ($item['producto_nombre'] ?? 'Concepto manual'));
+                        if ($nombre === '') {
+                            $nombre = 'Concepto manual';
+                        }
+
+                        VentaDetalle::create([
+                            'venta_id' => $venta->id,
+                            'producto_id' => $producto?->id,
+                            'user_id' => $request->user()->id ?? null,
+                            'producto_nombre' => $nombre,
+                            'precio' => $precio,
+                            'cantidad' => $cantidad,
+                            'subtotal' => $subtotal,
+                            'estado' => true,
+                        ]);
+                    }
+                } else {
+                    $total = round((float) ($validated['monto'] ?? 0), 2);
+                    if ($total <= 0) {
+                        throw ValidationException::withMessages([
+                            'monto' => 'Debe enviar items o un monto para ingreso/egreso',
+                        ]);
+                    }
+                }
+
+                $venta->update(['total' => round($total, 2)]);
+
+                if ($validated['tipo_pago'] === 'contado') {
+                    Pago::create([
+                        'venta_id' => $venta->id,
+                        'user_id' => $request->user()->id ?? null,
+                        'nro_cuota' => 1,
+                        'monto' => round($total, 2),
+                        'fecha_programada' => now()->toDateString(),
+                        'fecha_pago' => now(),
+                        'metodo' => $validated['metodo_pago'] ?? 'efectivo',
+                        'estado' => 'PAGADO',
+                    ]);
+                } else {
+                    $this->crearPlanCuotas($venta, $request, $validated, round($total, 2));
+                }
+
+                $venta->load(['caja', 'detalles', 'pagos', 'user', 'cliente']);
                 $venta = $this->withResumen($venta);
-                $resultadoFacturacion = [
-                    'ok' => false,
-                    'estado' => 'ERROR',
-                    'mensajes' => [$e->getMessage()],
-                ];
+
+                if ($venta->facturado) {
+                    $resultadoFacturacion = app(SiatService::class)->facturarVenta($venta);
+
+                    if (empty($resultadoFacturacion['cuf'])) {
+                        throw ValidationException::withMessages([
+                            'facturado' => 'No se obtuvo CUF para la venta facturada.',
+                        ]);
+                    }
+
+                    $venta->refresh()->load(['caja', 'detalles', 'pagos', 'user', 'cliente', 'prestamos.inventario']);
+                    $venta = $this->withResumen($venta);
+                }
+
+                return $venta;
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            if (! empty($validated['facturado'])) {
+                throw ValidationException::withMessages([
+                    'facturado' => $e->getMessage(),
+                ]);
             }
+
+            throw $e;
         }
 
         if ($resultadoFacturacion !== null) {
@@ -276,7 +287,7 @@ class VentaController extends Controller
                 $q->whereDate('fecha_venta', '>=', $request->date_from)
                     ->orWhere(function ($q2) use ($request) {
                         $q2->whereNull('fecha_venta')
-                            ->where('created_at', '>=', $request->date_from . ' 00:00:00');
+                            ->where('created_at', '>=', $request->date_from.' 00:00:00');
                     });
             });
         }
@@ -285,7 +296,7 @@ class VentaController extends Controller
                 $q->whereDate('fecha_venta', '<=', $request->date_to)
                     ->orWhere(function ($q2) use ($request) {
                         $q2->whereNull('fecha_venta')
-                            ->where('created_at', '<=', $request->date_to . ' 23:59:59');
+                            ->where('created_at', '<=', $request->date_to.' 23:59:59');
                     });
             });
         }
@@ -293,6 +304,7 @@ class VentaController extends Controller
         $sort = strtolower((string) $request->get('sort_deuda', 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->reorder('saldo_pendiente_sql', $sort)->orderBy('id', 'desc');
         $ventas = $query->get()->map(fn (Venta $v) => $this->withResumen($v));
+
         return $ventas->values();
     }
 
@@ -352,6 +364,7 @@ class VentaController extends Controller
             }
 
             $venta->load(['pagos', 'detalles', 'user', 'caja']);
+
             return $this->withResumen($venta);
         });
     }
@@ -363,6 +376,7 @@ class VentaController extends Controller
         ]);
         $oculto = $request->boolean('oculto', true);
         $venta->update(['deuda_oculta' => $oculto]);
+
         return response()->json(['message' => $oculto ? 'Deuda oculta' : 'Deuda visible']);
     }
 
@@ -404,7 +418,7 @@ class VentaController extends Controller
         DB::transaction(function () use ($venta, $pago) {
             $pago->update([
                 'estado' => 'ANULADO',
-                'observacion' => trim(($pago->observacion ? $pago->observacion . ' | ' : '') . 'Pago anulado'),
+                'observacion' => trim(($pago->observacion ? $pago->observacion.' | ' : '').'Pago anulado'),
             ]);
 
             Pago::create([
@@ -416,11 +430,12 @@ class VentaController extends Controller
                 'fecha_pago' => null,
                 'metodo' => 'credito',
                 'estado' => 'PENDIENTE',
-                'observacion' => 'Reversion por anulacion de pago #' . $pago->id,
+                'observacion' => 'Reversion por anulacion de pago #'.$pago->id,
             ]);
         });
 
         $venta->load(['caja', 'detalles', 'pagos', 'user']);
+
         return $this->withResumen($venta);
     }
 
@@ -431,7 +446,7 @@ class VentaController extends Controller
         }
 
         // No permitir anular ingresos si dejaria la caja en negativo.
-        if (!empty($venta->caja_id) && $venta->tipo_movimiento === 'ingreso') {
+        if (! empty($venta->caja_id) && $venta->tipo_movimiento === 'ingreso') {
             $montoAnular = $this->montoQueAfectaCaja($venta);
             $saldoActual = $this->saldoCajaDisponible((int) $venta->caja_id);
             $saldoResultante = round($saldoActual - $montoAnular, 2);
@@ -512,6 +527,7 @@ class VentaController extends Controller
         if ($concepto !== '') {
             return "Concepto: {$concepto}";
         }
+
         return $obs !== '' ? $obs : null;
     }
 
@@ -522,7 +538,7 @@ class VentaController extends Controller
         }
 
         $items = $validated['items'] ?? [];
-        if (!empty($items)) {
+        if (! empty($items)) {
             $total = collect($items)->sum(function ($item) {
                 return round((float) ($item['cantidad'] ?? 0) * (float) ($item['precio'] ?? 0), 2);
             });
@@ -537,14 +553,15 @@ class VentaController extends Controller
     {
         $pagado = $venta->pagos->where('estado', 'PAGADO')->sum('monto');
         $deuda = $venta->pagos->where('estado', 'PENDIENTE')->sum('monto');
-        $venta->setAttribute('total_pagado', round((float)$pagado, 2));
-        $venta->setAttribute('saldo_pendiente', round((float)$deuda, 2));
+        $venta->setAttribute('total_pagado', round((float) $pagado, 2));
+        $venta->setAttribute('saldo_pendiente', round((float) $deuda, 2));
         $venta->setAttribute('fecha', $venta->fecha_venta?->format('Y-m-d') ?: optional($venta->created_at)->format('Y-m-d'));
         $venta->setAttribute('hora', optional($venta->created_at)->format('H:i:s'));
         $prestamosCount = (int) ($venta->prestamos_count ?? ($venta->relationLoaded('prestamos') ? $venta->prestamos->count() : 0));
         $venta->setAttribute('prestamos_count', $prestamosCount);
         $venta->setAttribute('tiene_prestamo', $prestamosCount > 0);
         $venta->setAttribute('factura_ok', $venta->facturado && $venta->factura_estado === 'VALIDADA');
+
         return $venta;
     }
 
@@ -596,6 +613,7 @@ class VentaController extends Controller
 
         $ingresos = (float) ($row->ingresos ?? 0);
         $egresos = (float) ($row->egresos ?? 0);
+
         return round($ingresos - $egresos, 2);
     }
 }

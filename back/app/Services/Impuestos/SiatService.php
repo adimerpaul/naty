@@ -95,12 +95,14 @@ class SiatService
             throw new RuntimeException('SIAT no devolvio un CUFD valido.');
         }
 
+        $fechaCreacion = now();
+
         return Cufd::query()->create([
             'codigo' => $respuesta->codigo,
             'codigoControl' => $respuesta->codigoControl,
             'direccion' => $respuesta->direccion ?? config('siat.direccion'),
-            'fechaVigencia' => Carbon::parse($respuesta->fechaVigencia ?? now()->endOfDay()),
-            'fechaCreacion' => now(),
+            'fechaVigencia' => $this->fechaVigenciaCufd($fechaCreacion),
+            'fechaCreacion' => $fechaCreacion,
             'codigoPuntoVenta' => $codigoPuntoVenta,
             'codigoSucursal' => $codigoSucursal,
         ]);
@@ -236,6 +238,11 @@ class SiatService
             ->where('fechaVigencia', '>=', now())
             ->latest('id')
             ->first();
+    }
+
+    private function fechaVigenciaCufd(Carbon $fechaCreacion): Carbon
+    {
+        return $fechaCreacion->copy()->endOfDay();
     }
 
     private function soapClient(string $wsdl): SoapClient

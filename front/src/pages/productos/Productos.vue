@@ -93,6 +93,10 @@
                 <q-item-section avatar><q-icon name="edit" /></q-item-section>
                 <q-item-section><q-item-label>Editar</q-item-label></q-item-section>
               </q-item>
+              <q-item clickable v-close-popup @click="abrirCambiarImagen(props.row)">
+                <q-item-section avatar><q-icon name="image" color="teal" /></q-item-section>
+                <q-item-section><q-item-label>Cambiar imagen</q-item-label></q-item-section>
+              </q-item>
               <q-item clickable v-close-popup @click="productoEliminar(props.row.id)">
                 <q-item-section avatar><q-icon name="delete" color="negative" /></q-item-section>
                 <q-item-section><q-item-label>Eliminar</q-item-label></q-item-section>
@@ -196,6 +200,80 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- DIALOG CAMBIAR IMAGEN -->
+    <q-dialog v-model="dialogImagen" @show="focusDropZone">
+      <q-card style="width: 500px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div>
+            <div class="text-subtitle1 text-weight-bold">Cambiar imagen</div>
+            <div class="text-caption text-grey-6">{{ imgProductoSel?.nombre }}</div>
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
+          <div class="row q-col-gutter-md items-center">
+
+            <!-- Imagen actual -->
+            <div class="col-5 text-center">
+              <div class="text-caption text-grey-6 q-mb-xs">Imagen actual</div>
+              <div class="img-preview-box">
+                <q-img
+                  v-if="imgNuevaPreview || imgProductoSel?.fotografia"
+                  :src="imgNuevaPreview || imgProducto(imgProductoSel?.fotografia)"
+                  fit="cover"
+                  style="width: 100%; height: 100%; border-radius: 10px;"
+                />
+                <q-icon v-else name="image_not_supported" size="42px" color="grey-4" />
+                <div v-if="loadingImagen" class="img-uploading-overlay">
+                  <q-spinner color="white" size="32px" />
+                  <div class="text-white text-caption q-mt-xs">Subiendo...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zona drag & drop / paste -->
+            <div class="col-7">
+              <div class="text-caption text-grey-6 q-mb-xs">Soltar o pegar nueva imagen</div>
+              <div
+                ref="dropZone"
+                class="img-drop-zone"
+                :class="{
+                  'img-drop-zone--over': imgDragOver,
+                  'img-drop-zone--loading': loadingImagen
+                }"
+                tabindex="0"
+                @dragover.prevent="imgDragOver = true"
+                @dragleave.prevent="imgDragOver = false"
+                @drop.prevent="onDropImagen"
+                @paste.prevent="onPasteImagen"
+                @click="$refs.imgFileInput.click()"
+              >
+                <q-icon
+                  :name="imgDragOver ? 'file_download' : 'cloud_upload'"
+                  size="38px"
+                  :color="imgDragOver ? 'primary' : 'grey-4'"
+                />
+                <div class="text-caption text-grey-6 q-mt-sm text-center" style="line-height: 1.4">
+                  Arrastra la imagen aquí<br>
+                  Pega con <kbd>Ctrl+V</kbd><br>
+                  o haz clic para buscar
+                </div>
+              </div>
+              <input
+                ref="imgFileInput"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="onFileInputImagen"
+              />
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -217,6 +295,11 @@ export default {
         sortBy: 'orden',
         descending: false
       },
+      dialogImagen: false,
+      imgProductoSel: null,
+      loadingImagen: false,
+      imgDragOver: false,
+      imgNuevaPreview: null,
       grupoOptions: [
         { label: 'Chicha', value: 'chicha' },
         { label: 'Garapina', value: 'garapina' }
@@ -331,6 +414,71 @@ export default {
         this.loading = false
       }
     },
+    abrirCambiarImagen (row) {
+      this.imgProductoSel = row
+      this.imgNuevaPreview = null
+      this.dialogImagen = true
+    },
+    focusDropZone () {
+      this.$nextTick(() => this.$refs.dropZone?.focus())
+    },
+    onDropImagen (e) {
+      this.imgDragOver = false
+      const file = e.dataTransfer?.files?.[0]
+      if (file) this.subirImagen(file)
+    },
+    onPasteImagen (e) {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          this.subirImagen(item.getAsFile())
+          break
+        }
+      }
+    },
+    onFileInputImagen (e) {
+      const file = e.target.files?.[0]
+      if (file) this.subirImagen(file)
+      e.target.value = ''
+    },
+    async subirImagen (file) {
+      if (!file || !file.type.startsWith('image/')) {
+        this.$alert.error('Solo se permiten archivos de imagen')
+        return
+      }
+      this.imgNuevaPreview = URL.createObjectURL(file)
+      this.loadingImagen = true
+      try {
+        const fd = new FormData()
+        fd.append('_method', 'PUT')
+        fd.append('fotografia', file)
+        fd.append('nombre', this.imgProductoSel.nombre || '')
+        fd.append('precio', this.imgProductoSel.precio ?? 0)
+        fd.append('observacion', this.imgProductoSel.observacion || '')
+        fd.append('grupo', this.imgProductoSel.grupo || 'chicha')
+        fd.append('tipo_producto', this.tipoProducto)
+        fd.append('orden', this.imgProductoSel.orden ?? 1)
+        fd.append('color', this.imgProductoSel.color || '#ffffff')
+        fd.append('estado', this.imgProductoSel.estado ? '1' : '0')
+        const res = await this.$axios.post(`productos/${this.imgProductoSel.id}`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        const nuevaFoto = res.data?.fotografia || res.data?.data?.fotografia
+        const idx = this.productos.findIndex(p => p.id === this.imgProductoSel.id)
+        if (idx !== -1 && nuevaFoto) {
+          this.productos[idx] = { ...this.productos[idx], fotografia: nuevaFoto }
+          this.imgProductoSel = { ...this.imgProductoSel, fotografia: nuevaFoto }
+          this.imgNuevaPreview = null
+        }
+        this.$alert.success('Imagen actualizada')
+      } catch (e) {
+        this.imgNuevaPreview = null
+        this.$alert.error(e.response?.data?.message || 'No se pudo actualizar la imagen')
+      } finally {
+        this.loadingImagen = false
+      }
+    },
     productoEliminar (id) {
       this.$alert.dialog('Desea eliminar el producto?')
         .onOk(() => {
@@ -354,6 +502,70 @@ export default {
   height: 18px;
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, .2);
+}
+
+/* ── Cambiar imagen ─────────────────────────────── */
+.img-preview-box {
+  width: 150px;
+  height: 150px;
+  border-radius: 10px;
+  background: #f4f5f7;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #e0e0e0;
+}
+
+.img-uploading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-drop-zone {
+  height: 150px;
+  border: 2px dashed #ccc;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+  outline: none;
+  user-select: none;
+}
+
+.img-drop-zone:focus,
+.img-drop-zone:hover {
+  border-color: #1976d2;
+  background: rgba(25, 118, 210, 0.04);
+}
+
+.img-drop-zone--over {
+  border-color: #1976d2 !important;
+  background: rgba(25, 118, 210, 0.08) !important;
+}
+
+.img-drop-zone--loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+kbd {
+  background: #eee;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  padding: 1px 4px;
+  font-size: 11px;
 }
 </style>
 

@@ -988,7 +988,7 @@ Oruro</div>
       <tr>
         <td>${Number(d.cantidad || 0)}</td>
         <td>${d.producto_nombre || ''}</td>
-        <td style="text-align:right">${Number(d.subtotal || 0).toFixed(2)}</td>
+<!--        <td style="text-align:right">${Number(d.subtotal || 0).toFixed(2)}</td>-->
       </tr>
     `).join('');
     const rowsPrestamo = prestamos.map(p => `
@@ -1012,7 +1012,11 @@ Oruro</div>
         <hr>
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
-            <tr><th style="text-align:left">Cant</th><th style="text-align:left">Prod</th><th style="text-align:right">Subt</th></tr>
+            <tr>
+            <th style="text-align:left">Cant</th>
+            <th style="text-align:left">Prod</th>
+<!--            <th style="text-align:right">Subt</th>-->
+            </tr>
           </thead>
           <tbody>${rows || '<tr><td colspan="3">Sin detalle</td></tr>'}</tbody>
         </table>
@@ -1021,7 +1025,11 @@ Oruro</div>
         <div style="font-size:15px;"><b>Material / Prestamo</b></div>
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
-            <tr><th style="text-align:left">Cant</th><th style="text-align:left">Material</th><th style="text-align:left">Tipo</th></tr>
+            <tr>
+            <th style="text-align:left">Cant</th>
+            <th style="text-align:left">Material</th>
+            <th style="text-align:left">Tipo</th>
+            </tr>
           </thead>
           <tbody>${rowsPrestamo}</tbody>
         </table>` : ''}
