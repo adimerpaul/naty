@@ -9,6 +9,15 @@ class Prestamo extends Model
 {
     use HasFactory;
 
+    protected $appends = [
+        'retornado_cantidad',
+        'cantidad_actual',
+        'retornado_efectivo',
+        'efectivo_actual',
+        'fisico_recibido',
+        'monto_pendiente',
+    ];
+
     protected $fillable = [
         'fecha',
         'tipo',
@@ -48,5 +57,54 @@ class Prestamo extends Model
     public function venta()
     {
         return $this->belongsTo(Venta::class);
+    }
+
+    public function retornos()
+    {
+        return $this->hasMany(PrestamoRetorno::class);
+    }
+
+    public function getRetornadoCantidadAttribute(): int
+    {
+        return (int) $this->sumaRetornos('cantidad');
+    }
+
+    public function getCantidadActualAttribute(): int
+    {
+        return max(0, (int) $this->cantidad - $this->retornado_cantidad);
+    }
+
+    public function getRetornadoEfectivoAttribute(): float
+    {
+        return round((float) $this->sumaRetornos('efectivo'), 2);
+    }
+
+    public function getEfectivoActualAttribute(): float
+    {
+        return $this->monto_pendiente;
+    }
+
+    public function getFisicoRecibidoAttribute(): float
+    {
+        $monto = round((float) $this->efectivo, 2);
+        if ($monto <= 0 && is_numeric($this->fisico)) {
+            $monto = round((float) $this->fisico, 2);
+        }
+
+        return $monto;
+    }
+
+    public function getMontoPendienteAttribute(): float
+    {
+        return max(0, round($this->fisico_recibido - $this->retornado_efectivo, 2));
+    }
+
+    private function sumaRetornos(string $campo): float
+    {
+        if ($this->relationLoaded('retornos')) {
+            return (float) $this->retornos->sum($campo);
+        }
+
+        return (float) $this->retornos()->sum($campo);
     }
 }

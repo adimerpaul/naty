@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\Inventario;
 use App\Models\Pago;
 use App\Models\Prestamo;
+use App\Models\PrestamoRetorno;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class PrestamoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Prestamo::with(['cliente', 'inventario', 'venta'])->orderBy('id', 'desc');
+        $query = Prestamo::with(['cliente', 'inventario', 'venta', 'retornos.user'])->orderBy('id', 'desc');
         if ($request->filled('tipo')) {
             $query->where('tipo', $request->tipo);
         }
@@ -31,7 +32,7 @@ class PrestamoController extends Controller
             }
         }
 
-        return $query->get();
+        return $query->get()->map(fn (Prestamo $prestamo) => $this->withResumen($prestamo))->values();
     }
 
     public function store(Request $request)
@@ -66,8 +67,9 @@ class PrestamoController extends Controller
             $inv->update(['cantidad' => $inv->cantidad - (int) $validated['cantidad']]);
 
             $ventaGenerada = null;
+            $montoPrestamo = $this->montoFisicoRecibido($validated);
             if ($validated['tipo'] === 'venta') {
-                $monto = (float) ($validated['efectivo'] ?? 0);
+                $monto = $montoPrestamo;
                 if ($monto <= 0) {
                     return response()->json(['message' => 'Debe registrar efectivo para venta de material'], 422);
                 }
@@ -111,7 +113,7 @@ class PrestamoController extends Controller
                 'fecha' => $validated['fecha'] ?? now()->toDateString(),
                 'tipo' => $validated['tipo'],
                 'estado' => $validated['tipo'] === 'venta' ? 'VENDIDO' : 'EN PRESTAMO',
-                'efectivo' => $validated['efectivo'] ?? 0,
+                'efectivo' => $montoPrestamo,
                 'fisico' => $validated['fisico'] ?? '',
                 'observacion' => $validated['observacion'] ?? '',
                 'cantidad' => (int) $validated['cantidad'],
@@ -122,29 +124,175 @@ class PrestamoController extends Controller
                 'venta_id' => $validated['venta_id'] ?? $ventaGenerada?->id,
             ]);
 
-            return $prestamo->load(['cliente', 'inventario', 'venta']);
+            return $this->withResumen($prestamo->load(['cliente', 'inventario', 'venta', 'retornos.user']));
         });
     }
 
     public function retornar(Request $request, Prestamo $prestamo)
     {
-        if ($prestamo->estado !== 'EN PRESTAMO') {
-            return response()->json(['message' => 'Solo se puede retornar prestamos en estado EN PRESTAMO'], 422);
+        $prestamo->loadMissing('retornos');
+        if (! in_array($prestamo->estado, ['EN PRESTAMO', 'PARCIAL'], true)) {
+            return response()->json(['message' => 'Solo se puede retornar prestamos pendientes o parciales'], 422);
         }
 
-        return DB::transaction(function () use ($prestamo) {
-            $inventario = Inventario::lockForUpdate()->findOrFail($prestamo->inventario_id);
-            $inventario->update([
-                'cantidad' => (int) $inventario->cantidad + (int) $prestamo->cantidad,
-            ]);
+        return DB::transaction(function () use ($prestamo, $request) {
+            $prestamo->refresh()->load('retornos');
+            $saldoCantidad = $this->saldoCantidad($prestamo);
+            $saldoEfectivo = $this->saldoEfectivo($prestamo);
+
+            if ($saldoCantidad <= 0 && $saldoEfectivo <= 0) {
+                return response()->json(['message' => 'El prestamo ya fue retornado completamente'], 422);
+            }
+
+            $this->registrarRetorno($prestamo, $request, $saldoCantidad, $saldoEfectivo, null, 'Retorno completo');
 
             $prestamo->update([
                 'estado' => 'RETORNADO',
                 'prestado' => false,
-                'observacion' => trim(($prestamo->observacion ? $prestamo->observacion.' | ' : '').'Retornado'),
+                'observacion' => trim(($prestamo->observacion ? $prestamo->observacion.' | ' : '').'Retornado completo'),
             ]);
 
-            return $prestamo->load(['cliente', 'inventario', 'venta']);
+            return $this->withResumen($prestamo->load(['cliente', 'inventario', 'venta', 'retornos.user']));
         });
+    }
+
+    public function retornoParcial(Request $request, Prestamo $prestamo)
+    {
+        $validated = $request->validate([
+            'cantidad' => 'nullable|integer|min:0',
+            'efectivo' => 'nullable|numeric|min:0',
+            'fisico' => 'nullable|string|max:255',
+            'observacion' => 'nullable|string|max:255',
+        ]);
+
+        $prestamo->loadMissing('retornos');
+        if (! in_array($prestamo->estado, ['EN PRESTAMO', 'PARCIAL'], true)) {
+            return response()->json(['message' => 'Solo se puede retornar prestamos pendientes o parciales'], 422);
+        }
+
+        return DB::transaction(function () use ($prestamo, $request, $validated) {
+            $prestamo->refresh()->load('retornos');
+            $cantidad = (int) ($validated['cantidad'] ?? 0);
+            $efectivo = $this->montoFisicoRecibido($validated);
+            $fisico = trim((string) ($validated['fisico'] ?? ''));
+
+            if ($cantidad <= 0 && $efectivo <= 0 && $fisico === '') {
+                throw ValidationException::withMessages([
+                    'cantidad' => 'Debe registrar cantidad o fisico retornado.',
+                ]);
+            }
+
+            $saldoCantidad = $this->saldoCantidad($prestamo);
+            $saldoEfectivo = $this->saldoEfectivo($prestamo);
+
+            if ($cantidad > $saldoCantidad) {
+                throw ValidationException::withMessages([
+                    'cantidad' => 'La cantidad supera el saldo pendiente.',
+                ]);
+            }
+            if ($efectivo > $saldoEfectivo) {
+                throw ValidationException::withMessages([
+                    'efectivo' => 'El fisico retornado supera el saldo pendiente.',
+                ]);
+            }
+
+            $this->registrarRetorno(
+                $prestamo,
+                $request,
+                $cantidad,
+                $efectivo,
+                $fisico,
+                $validated['observacion'] ?? null
+            );
+
+            $prestamo->refresh()->load('retornos');
+            $nuevoEstado = $this->saldoCantidad($prestamo) <= 0 && $this->saldoEfectivo($prestamo) <= 0
+                ? 'RETORNADO'
+                : 'PARCIAL';
+
+            $prestamo->update([
+                'estado' => $nuevoEstado,
+                'prestado' => $nuevoEstado !== 'RETORNADO',
+            ]);
+
+            return $this->withResumen($prestamo->load(['cliente', 'inventario', 'venta', 'retornos.user']));
+        });
+    }
+
+    private function registrarRetorno(
+        Prestamo $prestamo,
+        Request $request,
+        int $cantidad,
+        float $efectivo,
+        ?string $fisico,
+        ?string $observacion
+    ): PrestamoRetorno {
+        if ($cantidad > 0) {
+            $inventario = Inventario::lockForUpdate()->findOrFail($prestamo->inventario_id);
+            $inventario->update([
+                'cantidad' => (int) $inventario->cantidad + $cantidad,
+            ]);
+        }
+
+        return PrestamoRetorno::create([
+            'prestamo_id' => $prestamo->id,
+            'user_id' => $request->user()->id ?? null,
+            'fecha' => now()->toDateString(),
+            'cantidad' => $cantidad,
+            'efectivo' => round($efectivo, 2),
+            'fisico' => $fisico,
+            'observacion' => $observacion,
+        ]);
+    }
+
+    private function withResumen(Prestamo $prestamo): Prestamo
+    {
+        $prestamo->loadMissing('retornos');
+        $retornadoCantidad = (int) $prestamo->retornos->sum('cantidad');
+        $retornadoEfectivo = round((float) $prestamo->retornos->sum('efectivo'), 2);
+        $fisicoRecibido = $this->montoPrestamo($prestamo);
+
+        $prestamo->setAttribute('retornado_cantidad', $retornadoCantidad);
+        $prestamo->setAttribute('cantidad_actual', max(0, (int) $prestamo->cantidad - $retornadoCantidad));
+        $prestamo->setAttribute('retornado_efectivo', $retornadoEfectivo);
+        $prestamo->setAttribute('efectivo_actual', max(0, round($fisicoRecibido - $retornadoEfectivo, 2)));
+        $prestamo->setAttribute('fisico_recibido', $fisicoRecibido);
+        $prestamo->setAttribute('monto_pendiente', max(0, round($fisicoRecibido - $retornadoEfectivo, 2)));
+
+        return $prestamo;
+    }
+
+    private function saldoCantidad(Prestamo $prestamo): int
+    {
+        $prestamo->loadMissing('retornos');
+
+        return max(0, (int) $prestamo->cantidad - (int) $prestamo->retornos->sum('cantidad'));
+    }
+
+    private function saldoEfectivo(Prestamo $prestamo): float
+    {
+        $prestamo->loadMissing('retornos');
+
+        return max(0, round($this->montoPrestamo($prestamo) - (float) $prestamo->retornos->sum('efectivo'), 2));
+    }
+
+    private function montoFisicoRecibido(array $validated): float
+    {
+        $monto = round((float) ($validated['efectivo'] ?? 0), 2);
+        if ($monto <= 0 && isset($validated['fisico']) && is_numeric($validated['fisico'])) {
+            $monto = round((float) $validated['fisico'], 2);
+        }
+
+        return $monto;
+    }
+
+    private function montoPrestamo(Prestamo $prestamo): float
+    {
+        $monto = round((float) $prestamo->efectivo, 2);
+        if ($monto <= 0 && is_numeric($prestamo->fisico)) {
+            $monto = round((float) $prestamo->fisico, 2);
+        }
+
+        return $monto;
     }
 }

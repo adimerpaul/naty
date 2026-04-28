@@ -1,80 +1,33 @@
 <template>
   <q-page class="q-pa-md">
     <q-card flat bordered>
-      <q-tabs v-model="tab" dense class="tabs-inventario" align="left" active-color="white" indicator-color="transparent">
-        <q-tab no-caps name="inventario" icon="inventory_2" label="inventario" />
-        <q-tab no-caps name="prestamos" icon="payments" label="prestamos / garantias" />
-      </q-tabs>
-      <q-separator />
-      <q-tab-panels v-model="tab" animated>
-        <q-tab-panel name="inventario">
-          <q-table
-            dense
-            flat
-            bordered
-            :rows="inventarios"
-            :columns="colsInventario"
-            row-key="id"
-            :filter="fInventario"
-            v-model:pagination="pagInventario"
-            :rows-per-page-options="[50, 100]"
-          >
-            <template #top-right>
-              <q-input v-model="fInventario" dense outlined label="Buscar" class="q-mr-sm" />
-              <q-btn color="positive" no-caps icon="add" label="Nuevo" @click="nuevoInventario" class="q-mr-sm" />
-              <q-btn color="primary" no-caps icon="refresh" label="Actualizar" @click="cargarInventarios" />
-            </template>
-            <template #body-cell-actions="props">
-              <q-td :props="props">
-                <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
-                  <q-list dense>
-                    <q-item clickable v-close-popup @click="editarInventario(props.row)"><q-item-section avatar><q-icon name="edit" /></q-item-section><q-item-section>Editar</q-item-section></q-item>
-                    <q-item clickable v-close-popup @click="eliminarInventario(props.row.id)"><q-item-section avatar><q-icon name="delete" color="negative" /></q-item-section><q-item-section>Eliminar</q-item-section></q-item>
-                  </q-list>
-                </q-btn-dropdown>
-              </q-td>
-            </template>
-          </q-table>
-        </q-tab-panel>
-
-        <q-tab-panel name="prestamos">
-          <q-table
-            dense
-            flat
-            bordered
-            :rows="prestamos"
-            :columns="colsPrestamos"
-            row-key="id"
-            :filter="fPrestamo"
-            v-model:pagination="pagPrestamo"
-            :rows-per-page-options="[50, 100]"
-          >
-            <template #top-right>
-              <q-input v-model="fPrestamo" dense outlined label="Buscar" class="q-mr-sm" />
-              <q-btn color="positive" no-caps icon="add" label="Registrar" @click="nuevoPrestamo" class="q-mr-sm" />
-              <q-btn color="primary" no-caps icon="refresh" label="Actualizar" @click="cargarPrestamos" />
-            </template>
-            <template #body-cell-actions="props">
-              <q-td :props="props">
-                <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
-                  <q-list dense>
-                    <q-item clickable v-close-popup :disable="props.row.estado !== 'EN PRESTAMO'" @click="retornarPrestamo(props.row)">
-                      <q-item-section avatar><q-icon name="assignment_return" color="positive" /></q-item-section>
-                      <q-item-section>Retornar</q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-btn-dropdown>
-              </q-td>
-            </template>
-            <template #body-cell-tipo="props">
-              <q-td :props="props"><q-chip dense :color="props.row.tipo === 'venta' ? 'primary' : 'warning'" text-color="white">{{ props.row.tipo }}</q-chip></q-td>
-            </template>
-            <template #body-cell-estado="props">
-              <q-td :props="props"><q-chip dense :color="estadoColor(props.row.estado)" text-color="white">{{ props.row.estado }}</q-chip></q-td>
-            </template>
-          </q-table>
-        </q-tab-panel>
-      </q-tab-panels>
+      <q-table
+        dense
+        flat
+        bordered
+        :rows="inventarios"
+        :columns="colsInventario"
+        row-key="id"
+        :filter="fInventario"
+        v-model:pagination="pagInventario"
+        :rows-per-page-options="[50, 100]"
+      >
+        <template #top-right>
+          <q-input v-model="fInventario" dense outlined label="Buscar" class="q-mr-sm" />
+          <q-btn color="positive" no-caps icon="add" label="Nuevo" @click="nuevoInventario" class="q-mr-sm" />
+          <q-btn color="primary" no-caps icon="refresh" label="Actualizar" @click="cargarInventarios" />
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
+              <q-list dense>
+                <q-item clickable v-close-popup @click="editarInventario(props.row)"><q-item-section avatar><q-icon name="edit" /></q-item-section><q-item-section>Editar</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="eliminarInventario(props.row.id)"><q-item-section avatar><q-icon name="delete" color="negative" /></q-item-section><q-item-section>Eliminar</q-item-section></q-item>
+              </q-list>
+            </q-btn-dropdown>
+          </q-td>
+        </template>
+      </q-table>
     </q-card>
 
     <q-dialog v-model="dialogInventario">
@@ -92,28 +45,6 @@
               <div class="col-6"><q-input v-model="inv.estado" dense outlined label="Estado" /></div>
               <div class="col-12"><q-input v-model="inv.detalle" dense outlined label="Detalle" /></div>
             </div>
-            <div class="row justify-end q-gutter-sm q-mt-md"><q-btn flat color="negative" no-caps label="Cancelar" v-close-popup /><q-btn color="primary" no-caps label="Guardar" type="submit" :loading="loading" /></div>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="dialogPrestamo">
-      <q-card style="width: 620px; max-width: 96vw;">
-        <q-card-section class="row items-center q-pb-none"><div class="text-subtitle1 text-weight-bold">Registrar prestamo / venta material</div><q-space /><q-btn icon="close" flat round dense v-close-popup /></q-card-section>
-        <q-card-section>
-          <q-form @submit.prevent="guardarPrestamo">
-            <q-select v-model="pres.cliente_id" dense outlined emit-value map-options :options="clientesOptions" label="Cliente" :rules="[req]" class="q-mb-sm" />
-            <q-select v-model="pres.inventario_id" dense outlined emit-value map-options :options="inventariosOptions" label="Inventario" :rules="[req]" class="q-mb-sm" />
-            <div class="row q-col-gutter-sm">
-              <div class="col-4"><q-input v-model.number="pres.cantidad" dense outlined type="number" min="1" label="Cantidad" :rules="[req]" /></div>
-              <div class="col-4"><q-select v-model="pres.tipo" dense outlined emit-value map-options :options="[{label:'Prestamo',value:'prestamo'},{label:'Venta',value:'venta'}]" label="Tipo" /></div>
-              <div class="col-4"><q-select v-model="pres.tipo_venta" dense outlined emit-value map-options :options="[{label:'Detalle',value:'detalle'},{label:'Local',value:'local'}]" label="Tipo venta" /></div>
-            </div>
-            <q-input v-if="pres.tipo==='venta'" v-model.number="pres.efectivo" dense outlined type="number" min="0" step="0.01" label="Efectivo" class="q-mt-sm" />
-            <q-select v-if="pres.tipo==='venta'" v-model="pres.metodo_pago" dense outlined emit-value map-options :options="[{label:'Efectivo',value:'efectivo'},{label:'QR',value:'qr'}]" label="Metodo" class="q-mt-sm" />
-            <q-input v-model="pres.fisico" dense outlined label="Fisico" class="q-mt-sm" />
-            <q-input v-model="pres.observacion" dense outlined label="Observacion" class="q-mt-sm" />
             <div class="row justify-end q-gutter-sm q-mt-md"><q-btn flat color="negative" no-caps label="Cancelar" v-close-popup /><q-btn color="primary" no-caps label="Guardar" type="submit" :loading="loading" /></div>
           </q-form>
         </q-card-section>

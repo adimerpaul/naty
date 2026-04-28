@@ -237,26 +237,14 @@
           </template>
           <template #body-cell-actions="props">
             <q-td :props="props">
-              <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
-                <q-list dense>
-                  <q-item clickable v-close-popup @click="verVenta(props.row)">
-                    <q-item-section avatar><q-icon name="visibility" color="primary" /></q-item-section>
-                    <q-item-section>Ver</q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup @click="imprimirVenta(props.row)">
-                    <q-item-section avatar><q-icon name="print" color="deep-orange" /></q-item-section>
-                    <q-item-section>Imprimir</q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup :disable="!props.row.cuf" @click="imprimirImpuestos(props.row)">
-                    <q-item-section avatar><q-icon name="verified" color="primary" /></q-item-section>
-                    <q-item-section>Imprimir impuestos</q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup :disable="props.row.estado === 'ANULADA'" @click="anularVenta(props.row)">
-                    <q-item-section avatar><q-icon name="block" color="negative" /></q-item-section>
-                    <q-item-section>Anular</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-btn-dropdown>
+              <venta-actions-menu
+                :row="props.row"
+                @view="verVenta"
+                @route-sheet="abrirHojaRuta"
+                @print="imprimirVenta"
+                @print-tax="imprimirImpuestos"
+                @cancel="anularVenta"
+              />
             </q-td>
           </template>
           <template #body-cell-prestamo="props">
@@ -295,6 +283,16 @@
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Venta #{{ ventaSel?.id }}</div>
           <q-space />
+          <venta-actions-menu
+            v-if="ventaSel"
+            :row="ventaSel"
+            class="q-mr-sm"
+            @view="verVenta"
+            @route-sheet="abrirHojaRuta"
+            @print="imprimirVenta"
+            @print-tax="imprimirImpuestos"
+            @cancel="anularVenta"
+          />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section>
@@ -325,8 +323,11 @@
             <template #body-cell-inventario="props">
               <q-td :props="props">{{ props.row.inventario?.nombre || '-' }}</q-td>
             </template>
-            <template #body-cell-efectivo="props">
-              <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+            <template #body-cell-fisico_recibido="props">
+              <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.fisico_recibido) }}</q-td>
+            </template>
+            <template #body-cell-monto_pendiente="props">
+              <q-td :props="props" class="text-right text-negative text-weight-bold">{{ money(props.row.monto_pendiente ?? props.row.efectivo_actual) }}</q-td>
             </template>
           </q-table>
         </q-card-section>
@@ -461,7 +462,7 @@
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-md-6">
               <q-input
-                :model-value="ventaCreada?.cliente_nombre || ''"
+                :model-value="clienteSeleccionado?.nombre || ''"
                 dense
                 outlined
                 readonly
@@ -517,14 +518,14 @@
             <div class="col-12 col-md-4">
               <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />
             </div>
-            <div class="col-12 col-md-4" v-if="garantia.tipo === 'venta'">
+            <div class="col-12 col-md-4">
               <q-input
                 v-model.number="garantia.efectivo"
                 type="number"
                 min="0"
                 dense
                 outlined
-                label="Monto efectivo"
+                :label="garantia.tipo === 'venta' ? 'Monto efectivo' : 'Fisico recibido'"
                 @update:model-value="garantia.efectivo_manual = true"
               >
                 <template #append>
@@ -546,9 +547,6 @@
                 ]"
               />
             </div>
-            <div class="col-12 col-md-4" v-if="garantia.tipo === 'prestamo'">
-              <q-input v-model="garantia.fisico" dense outlined label="Fisico recibido" />
-            </div>
             <div class="col-12">
               <q-input v-model="garantia.observacion" dense outlined type="textarea" autogrow label="Observacion" />
             </div>
@@ -560,16 +558,27 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    <hoja-ruta-dialog
+      v-model="dialogHojaRuta"
+      :row="hojaRutaRow"
+      @saved="hojaRutaGuardada"
+    />
     <div id="myElement" class="hidden"></div>
   </q-page>
 </template>
 
 <script>
 import { Imprimir } from 'src/addons/Imprimir'
+import HojaRutaDialog from 'src/components/ventas/HojaRutaDialog.vue'
+import VentaActionsMenu from 'src/components/ventas/VentaActionsMenu.vue'
 import { useCounterStore } from 'stores/example-store'
 
 export default {
   name: 'VentaNuevaPage',
+  components: {
+    HojaRutaDialog,
+    VentaActionsMenu
+  },
   data () {
     return {
       productos: [],
@@ -580,6 +589,7 @@ export default {
       search: '',
       filtroGrupo: 'todos',
       dialogDetalle: false,
+      dialogHojaRuta: false,
       dialogClienteNuevo: false,
       dialogGarantiaAsk: false,
       dialogGarantia: false,
@@ -589,6 +599,7 @@ export default {
       loadingHistorial: false,
       ventaCreada: null,
       ventaSel: null,
+      hojaRutaRow: null,
       historial: {
         date_from: new Date().toISOString().slice(0, 10),
         date_to: new Date().toISOString().slice(0, 10)
@@ -646,9 +657,10 @@ export default {
       colsPrestamos: [
         { name: 'inventario', label: 'Material', field: row => row.inventario?.nombre || '-', align: 'left' },
         { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
-        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
-        { name: 'fisico', label: 'Fisico', field: 'fisico', align: 'left' },
-        { name: 'efectivo', label: 'Efectivo', field: 'efectivo', align: 'right' },
+        { name: 'cantidad', label: 'Cant. prestada', field: 'cantidad', align: 'right' },
+        { name: 'cantidad_actual', label: 'Cant. pendiente', field: 'cantidad_actual', align: 'right' },
+        { name: 'fisico_recibido', label: 'Monto recibido', field: 'fisico_recibido', align: 'right' },
+        { name: 'monto_pendiente', label: 'Monto pendiente', field: 'monto_pendiente', align: 'right' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
       ]
     }
@@ -657,6 +669,7 @@ export default {
     tipoVenta () { return this.$route.params.tipo === 'local' ? 'local' : 'detalle' },
     tituloPagina () { return this.tipoVenta === 'local' ? 'Nueva venta local' : 'Nueva venta detalle' },
     selectedInventario () { return this.inventarios.find(i => i.id === this.garantia.inventario_id) || null },
+    clienteSeleccionado () { return this.clientesBackup.find(c => c.id === this.form.cliente_id) || null },
     productosFiltrados () {
       const t = this.search.toLowerCase().trim()
       return this.productos.filter(p => {
@@ -757,6 +770,16 @@ export default {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar detalle')
       }
     },
+    abrirHojaRuta (row) {
+      this.hojaRutaRow = row
+      this.dialogHojaRuta = true
+    },
+    hojaRutaGuardada (venta) {
+      if (this.ventaSel?.id === venta.id) {
+        this.ventaSel = venta
+      }
+      this.cargarHistorial()
+    },
     agregarProducto (p) {
       const idx = this.carrito.findIndex(i => i.producto_id === p.id)
       if (idx >= 0) {
@@ -837,6 +860,9 @@ export default {
       if (!this.carrito.length) return
       const ok = await this.$refs.formVenta.validate()
       if (!ok) return
+      this.dialogGarantiaAsk = true
+    },
+    async crearVenta () {
       this.loadingGuardar = true
       try {
         const res = await this.$axios.post('ventas', {
@@ -865,19 +891,21 @@ export default {
         } else {
           this.$alert.success('Venta registrada')
         }
-        this.dialogGarantiaAsk = true
         this.cargarHistorial()
+        return this.ventaCreada
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo registrar la venta')
+        return null
       } finally {
         this.loadingGuardar = false
       }
     },
     async continuarSinGarantia () {
-      const ventaId = this.ventaCreada?.id
       this.dialogGarantiaAsk = false
+      const venta = await this.crearVenta()
+      if (!venta) return
       this.carrito = []
-      await this.imprimirVentaCompleta(ventaId)
+      await this.imprimirVentaCompleta(venta.id)
       this.resetVentaNueva()
     },
     async abrirDialogGarantia () {
@@ -903,24 +931,41 @@ export default {
       this.aplicarPrecioSugerido()
     },
     async guardarGarantia () {
-      if (!this.ventaCreada) return
+      if (!this.garantia.inventario_id) {
+        this.$alert.error('Debe seleccionar inventario')
+        return
+      }
+      if (Number(this.garantia.cantidad || 0) < 1) {
+        this.$alert.error('Debe registrar cantidad valida')
+        return
+      }
+      if (this.selectedInventario && Number(this.garantia.cantidad || 0) > Number(this.selectedInventario.cantidad || 0)) {
+        this.$alert.error('La cantidad supera el inventario disponible')
+        return
+      }
+      if (Number(this.garantia.efectivo || 0) <= 0) {
+        this.$alert.error(this.garantia.tipo === 'venta' ? 'Debe registrar monto efectivo para venta de material' : 'Debe registrar fisico recibido')
+        return
+      }
       this.loadingGarantia = true
       try {
+        const venta = await this.crearVenta()
+        if (!venta) return
         await this.$axios.post('prestamos', {
-          venta_id: this.ventaCreada.id,
-          cliente_id: this.ventaCreada.cliente_id,
+          venta_id: venta.id,
+          cliente_id: venta.cliente_id,
           inventario_id: this.garantia.inventario_id,
           cantidad: this.garantia.cantidad,
           tipo: this.garantia.tipo,
-          efectivo: this.garantia.tipo === 'venta' ? this.garantia.efectivo : 0,
+          efectivo: this.garantia.efectivo,
           metodo_pago: this.garantia.metodo_pago,
-          fisico: this.garantia.fisico,
+          fisico: '',
           observacion: this.garantia.observacion,
           tipo_venta: this.tipoVenta
         })
         this.$alert.success('Garantia registrada')
         this.dialogGarantia = false
-        await this.imprimirVentaCompleta(this.ventaCreada?.id)
+        await this.imprimirVentaCompleta(venta.id)
         this.resetVentaNueva()
         this.cargarHistorial()
       } catch (e) {

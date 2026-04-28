@@ -1045,8 +1045,10 @@ Oruro</div>
     const dd = String(fecha.getDate()).padStart(2, '0');
     const mm = String(fecha.getMonth() + 1).padStart(2, '0');
     const yy = fecha.getFullYear();
-    const hora = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}:${String(fecha.getSeconds()).padStart(2, '0')}`;
+    const hora = venta.hoja_hora || `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}:${String(fecha.getSeconds()).padStart(2, '0')}`;
     const fechaTxt = `${dd}/${mm}/${yy}`;
+    const fechaEntrega = venta.hoja_fecha_entrega || venta.fecha || venta.fecha_venta || null;
+    const fechaEntregaTxt = fechaEntrega ? String(fechaEntrega).slice(0, 10).split('-').reverse().join('/') : fechaTxt;
     const detalles = venta.detalles || [];
     const prestamos = venta.prestamos || [];
     const rows = detalles.map(d => `
@@ -1064,6 +1066,8 @@ Oruro</div>
     `).join('');
 
     const metodo = (venta.pagos || []).find(p => p.estado === 'PAGADO')?.metodo || '-';
+    const cuenta = venta.hoja_cuenta ?? venta.total_pagado ?? 0;
+    const saldo = venta.hoja_saldo ?? venta.saldo_pendiente ?? venta.total ?? 0;
     const html = `
       <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
         <div style="text-align:center;">
@@ -1072,7 +1076,8 @@ Oruro</div>
         </div>
         <table style="width:100%;margin-top:6px;">
           <tr><td>Fecha:</td><td><b>${fechaTxt}</b></td></tr>
-          <tr><td>Fecha entrega:</td><td><b>${fechaTxt}</b></td></tr>
+          <tr><td>Fecha entrega:</td><td><b>${fechaEntregaTxt}</b></td></tr>
+          <tr><td>Turno:</td><td><b>${venta.hoja_turno || '-'}</b></td></tr>
         </table>
         <hr>
         <table style="width:100%;border-collapse:collapse;">
@@ -1086,14 +1091,16 @@ Oruro</div>
           <tbody>${rowsPrestamo}</tbody>
         </table>` : ''}
         <div style="margin-top:8px;"><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
-        <div><b>Tel:</b> ${venta.cliente_telefono || '-'}</div>
-        <div><b>Direccion:</b> ${venta.cliente_direccion || '-'}</div>
+        <div><b>Tel 1:</b> ${venta.hoja_telefono_1 || venta.cliente_telefono || '-'}</div>
+        <div><b>Tel 2:</b> ${venta.hoja_telefono_2 || '-'}</div>
+        <div><b>Direccion:</b> ${venta.hoja_direccion || venta.cliente_direccion || '-'}</div>
         <div><b>Hora:</b> ${hora}</div>
+        <div><b>Envases:</b> ${venta.hoja_envases || '-'}</div>
         <hr>
-        <div><b>Observacion:</b> ${venta.observacion || ''}</div>
+        <div><b>Observacion:</b> ${venta.hoja_observaciones || venta.observacion || ''}</div>
         <div><b>Total:</b> ${Number(venta.total || 0).toFixed(2)}</div>
-        <div><b>A cuenta:</b> 0</div>
-        <div><b>Saldo:</b> ${Number(venta.total || 0).toFixed(2)}</div>
+        <div><b>A cuenta:</b> ${Number(cuenta || 0).toFixed(2)}</div>
+        <div><b>Saldo:</b> ${Number(saldo || 0).toFixed(2)}</div>
         <div><b>Metodo:</b> ${metodo}</div>
         <div><b>Usuario:</b> ${venta.user?.name || venta.user?.username || '-'}</div>
       </div>

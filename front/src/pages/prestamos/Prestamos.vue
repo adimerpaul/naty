@@ -34,9 +34,17 @@
           <q-td :props="props">
             <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
               <q-list dense>
-                <q-item clickable v-close-popup :disable="props.row.estado !== 'EN PRESTAMO'" @click="retornarPrestamo(props.row)">
+                <q-item clickable v-close-popup :disable="!puedeRetornar(props.row)" @click="abrirRetornoParcial(props.row)">
+                  <q-item-section avatar><q-icon name="keyboard_return" color="primary" /></q-item-section>
+                  <q-item-section>Retorno parcial</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup :disable="!puedeRetornar(props.row)" @click="retornarPrestamo(props.row)">
                   <q-item-section avatar><q-icon name="assignment_return" color="positive" /></q-item-section>
-                  <q-item-section>Retornar</q-item-section>
+                  <q-item-section>Retornar completo</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="abrirHistorial(props.row)">
+                  <q-item-section avatar><q-icon name="history" color="indigo" /></q-item-section>
+                  <q-item-section>Historial retornos</q-item-section>
                 </q-item>
               </q-list>
             </q-btn-dropdown>
@@ -54,8 +62,11 @@
             <q-chip dense :color="estadoColor(props.row.estado)" text-color="white">{{ props.row.estado }}</q-chip>
           </q-td>
         </template>
-        <template #body-cell-efectivo="props">
-          <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+        <template #body-cell-fisico_recibido="props">
+          <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.fisico_recibido) }}</q-td>
+        </template>
+        <template #body-cell-monto_pendiente="props">
+          <q-td :props="props" class="text-right text-negative text-weight-bold">{{ money(props.row.monto_pendiente ?? props.row.efectivo_actual) }}</q-td>
         </template>
       </q-table>
     </q-card>
@@ -118,7 +129,7 @@
               <div class="col-12 col-md-4">
                 <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />
               </div>
-              <div class="col-12 col-md-4" v-if="pres.tipo === 'venta'">
+              <div class="col-12 col-md-4">
                 <q-input
                   v-model.number="pres.efectivo"
                   dense
@@ -126,7 +137,7 @@
                   type="number"
                   min="0"
                   step="0.01"
-                  label="Efectivo"
+                  label="Fisico recibido"
                   @update:model-value="pres.efectivo_manual = true"
                 >
                   <template #append>
@@ -148,10 +159,7 @@
                   label="Metodo"
                 />
               </div>
-              <div class="col-12 col-md-6">
-                <q-input v-model="pres.fisico" dense outlined label="Fisico" />
-              </div>
-              <div class="col-12 col-md-6">
+              <div class="col-12">
                 <q-input v-model="pres.observacion" dense outlined label="Observacion" />
               </div>
             </div>
@@ -160,6 +168,59 @@
               <q-btn color="primary" no-caps label="Guardar" type="submit" :loading="loadingGuardar" />
             </div>
           </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogRetorno">
+      <q-card style="width: 560px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Retorno parcial #{{ retornoRow?.id }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div class="row q-col-gutter-sm q-mb-sm">
+            <div class="col-6"><q-input :model-value="retornoRow?.cantidad_actual || 0" dense outlined readonly label="Cantidad pendiente" /></div>
+            <div class="col-6"><q-input :model-value="money(retornoRow?.monto_pendiente ?? retornoRow?.efectivo_actual)" dense outlined readonly label="Monto pendiente" /></div>
+          </div>
+          <q-form @submit.prevent="guardarRetornoParcial">
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-4">
+                <q-input v-model.number="retorno.cantidad" dense outlined type="number" min="0" label="Cantidad" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input v-model.number="retorno.efectivo" dense outlined type="number" min="0" step="0.01" label="Fisico retornado" />
+              </div>
+              <div class="col-12">
+                <q-input v-model="retorno.observacion" dense outlined label="Observacion" />
+              </div>
+            </div>
+            <div class="row justify-end q-gutter-sm q-mt-md">
+              <q-btn flat color="negative" no-caps label="Cancelar" v-close-popup />
+              <q-btn color="primary" no-caps label="Guardar retorno" type="submit" :loading="loadingRetorno" />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogHistorial">
+      <q-card style="width: 760px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Historial de retornos #{{ retornoRow?.id }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <q-table dense flat bordered :rows="retornoRow?.retornos || []" :columns="colsRetornos" row-key="id" hide-pagination>
+            <template #body-cell-efectivo="props">
+              <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+            </template>
+            <template #body-cell-user="props">
+              <q-td :props="props">{{ props.row.user?.name || props.row.user?.username || '-' }}</q-td>
+            </template>
+          </q-table>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -173,12 +234,22 @@ export default {
     return {
       loading: false,
       loadingGuardar: false,
+      loadingRetorno: false,
       filter: '',
       prestamos: [],
       clientes: [],
       clientesFiltrados: [],
       inventarios: [],
       dialogPrestamo: false,
+      dialogRetorno: false,
+      dialogHistorial: false,
+      retornoRow: null,
+      retorno: {
+        cantidad: 0,
+        efectivo: 0,
+        fisico: '',
+        observacion: ''
+      },
       pagination: { page: 1, rowsPerPage: 50, sortBy: 'id', descending: true },
       pres: {
         cliente_id: null,
@@ -198,12 +269,20 @@ export default {
         { name: 'fecha', label: 'Fecha', field: 'fecha', align: 'left' },
         { name: 'cliente', label: 'Cliente', field: row => row.cliente?.nombre || '-', align: 'left' },
         { name: 'inventario', label: 'Inventario', field: row => row.inventario?.nombre || '-', align: 'left' },
-        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'cantidad', label: 'Cant. prestada', field: 'cantidad', align: 'right' },
+        { name: 'cantidad_actual', label: 'Cant. pendiente', field: 'cantidad_actual', align: 'right' },
         { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
         { name: 'estado', label: 'Estado', field: 'estado', align: 'left' },
-        { name: 'efectivo', label: 'Efectivo', field: 'efectivo', align: 'right' },
-        { name: 'fisico', label: 'Fisico', field: 'fisico', align: 'left' },
+        { name: 'fisico_recibido', label: 'Monto recibido', field: 'fisico_recibido', align: 'right' },
+        { name: 'monto_pendiente', label: 'Monto pendiente', field: 'monto_pendiente', align: 'right' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
+      ],
+      colsRetornos: [
+        { name: 'fecha', label: 'Fecha', field: 'fecha', align: 'left' },
+        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'efectivo', label: 'Fisico retornado', field: 'efectivo', align: 'right' },
+        { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' },
+        { name: 'user', label: 'Usuario', field: row => row.user?.name || '-', align: 'left' }
       ]
     }
   },
@@ -260,7 +339,11 @@ export default {
       if (estado === 'VENDIDO') return 'positive'
       if (estado === 'RETORNADO') return 'indigo'
       if (estado === 'ANULADO') return 'negative'
+      if (estado === 'PARCIAL') return 'deep-orange'
       return 'orange-8'
+    },
+    puedeRetornar (row) {
+      return ['EN PRESTAMO', 'PARCIAL'].includes(row.estado)
     },
     async cargarAll () {
       this.loading = true
@@ -311,7 +394,6 @@ export default {
       this.pres.efectivo_manual = false
     },
     recalcularPrecio () {
-      if (this.pres.tipo !== 'venta') return
       if (this.pres.efectivo_manual) return
       this.aplicarPrecioSugerido()
     },
@@ -331,12 +413,41 @@ export default {
         this.loadingGuardar = false
       }
     },
+    abrirRetornoParcial (row) {
+      this.retornoRow = row
+      this.retorno = {
+        cantidad: 0,
+        efectivo: 0,
+        fisico: '',
+        observacion: ''
+      }
+      this.dialogRetorno = true
+    },
+    abrirHistorial (row) {
+      this.retornoRow = row
+      this.dialogHistorial = true
+    },
+    async guardarRetornoParcial () {
+      if (!this.retornoRow) return
+      this.loadingRetorno = true
+      try {
+        await this.$axios.post(`prestamos/${this.retornoRow.id}/retorno-parcial`, this.retorno)
+        this.dialogRetorno = false
+        await Promise.all([this.cargarPrestamos(), this.cargarInventarios()])
+        this.$alert.success('Retorno parcial registrado')
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo registrar retorno parcial')
+      } finally {
+        this.loadingRetorno = false
+      }
+    },
     retornarPrestamo (row) {
-      this.$alert.dialog('Desea retornar este prestamo?').onOk(async () => {
+      this.$alert.dialog('Seguro que va a retornar todo?')
+        .onOk(async () => {
         try {
           await this.$axios.post(`prestamos/${row.id}/retornar`)
           await Promise.all([this.cargarPrestamos(), this.cargarInventarios()])
-          this.$alert.success('Prestamo retornado')
+          this.$alert.success('Prestamo retornado completo')
         } catch (e) {
           this.$alert.error(e.response?.data?.message || 'No se pudo retornar el prestamo')
         }

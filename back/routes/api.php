@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/prestamos', [PrestamoController::class, 'index']);
     Route::post('/prestamos', [PrestamoController::class, 'store']);
+    Route::post('/prestamos/{prestamo}/retorno-parcial', [PrestamoController::class, 'retornoParcial']);
     Route::post('/prestamos/{prestamo}/retornar', [PrestamoController::class, 'retornar']);
 
     Route::get('/cajas', [CajaController::class, 'index']);
@@ -90,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ventas/{venta}/pdf', [VentaController::class, 'pdf']);
     Route::post('/ventas', [VentaController::class, 'store']);
     Route::put('/ventas/{venta}', [VentaController::class, 'update']);
+    Route::put('/ventas/{venta}/hoja-ruta', [VentaController::class, 'updateHojaRuta']);
     Route::post('/ventas/{venta}/facturar', [ImpuestoController::class, 'facturarVenta']);
     Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular']);
     Route::post('/ventas/{venta}/amortizar', [VentaController::class, 'amortizar']);

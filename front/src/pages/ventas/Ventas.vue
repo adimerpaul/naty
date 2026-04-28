@@ -8,7 +8,7 @@
         </div>
         <q-space />
         <q-btn color="primary" no-caps icon="add" label="Nueva venta" @click="irNuevaVenta" class="q-mr-sm" />
-        <q-btn color="secondary" no-caps icon="account_balance_wallet" label="Ingreso / Egreso" @click="abrirMovimiento" class="q-mr-sm" />
+        <q-btn v-if="tipoVenta !== 'detalle'" color="secondary" no-caps icon="account_balance_wallet" label="Ingreso / Egreso" @click="abrirMovimiento" class="q-mr-sm" />
         <q-btn color="grey-8" flat no-caps icon="refresh" label="Actualizar" @click="ventasGet" :loading="loading" />
       </q-card-section>
     </q-card>
@@ -126,38 +126,14 @@
       </template>
       <template #body-cell-actions="props">
         <q-td :props="props" class="text-left">
-          <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
-            <q-list dense>
-              <q-item clickable v-close-popup @click="verVenta(props.row)">
-                <q-item-section avatar><q-icon name="visibility" color="primary" /></q-item-section>
-                <q-item-section>Ver</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="imprimirFicha(props.row)">
-                <q-item-section avatar><q-icon name="print" color="deep-orange" /></q-item-section>
-                <q-item-section>Imprimir</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup :disable="!props.row.cuf" @click="imprimirImpuestos(props.row)">
-                <q-item-section avatar><q-icon name="verified" color="primary" /></q-item-section>
-                <q-item-section>Imprimir impuestos</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="enviarWhatsapp(props.row)">
-                <q-item-section avatar><q-icon name="fa-brands fa-whatsapp" color="positive" /></q-item-section>
-                <q-item-section>Enviar WhatsApp</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="registrarPrestamoDesdeVenta(props.row)">
-                <q-item-section avatar><q-icon name="inventory_2" color="teal" /></q-item-section>
-                <q-item-section>Registrar prestamo</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="abrirEditar(props.row)">
-                <q-item-section avatar><q-icon name="edit" color="warning" /></q-item-section>
-                <q-item-section>Editar</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup :disable="props.row.estado === 'ANULADA'" @click="anularVenta(props.row)">
-                <q-item-section avatar><q-icon name="block" color="negative" /></q-item-section>
-                <q-item-section>Anular</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
+          <venta-actions-menu
+            :row="props.row"
+            @view="verVenta"
+            @route-sheet="abrirHojaRuta"
+            @print="imprimirFicha"
+            @print-tax="imprimirImpuestos"
+            @cancel="anularVenta"
+          />
         </q-td>
       </template>
     </q-table>
@@ -167,6 +143,16 @@
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Venta #{{ ventaSel?.id }}</div>
           <q-space />
+          <venta-actions-menu
+            v-if="ventaSel"
+            :row="ventaSel"
+            class="q-mr-sm"
+            @view="verVenta"
+            @route-sheet="abrirHojaRuta"
+            @print="imprimirFicha"
+            @print-tax="imprimirImpuestos"
+            @cancel="anularVenta"
+          />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section>
@@ -187,6 +173,12 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <hoja-ruta-dialog
+      v-model="dialogHojaRuta"
+      :row="hojaRutaRow"
+      @saved="hojaRutaGuardada"
+    />
 
     <q-dialog v-model="dialogMovimiento">
       <q-card style="width: 560px; max-width: 96vw;">
@@ -297,10 +289,16 @@
 
 <script>
 import { Imprimir } from 'src/addons/Imprimir'
+import HojaRutaDialog from 'src/components/ventas/HojaRutaDialog.vue'
+import VentaActionsMenu from 'src/components/ventas/VentaActionsMenu.vue'
 import { useCounterStore } from 'stores/example-store'
 
 export default {
   name: 'VentasPage',
+  components: {
+    HojaRutaDialog,
+    VentaActionsMenu
+  },
   data () {
     const today = new Date().toISOString().slice(0, 10)
     return {
@@ -309,6 +307,7 @@ export default {
       users: [],
       clientes: [],
       dialogDetalle: false,
+      dialogHojaRuta: false,
       dialogMovimiento: false,
       dialogEditar: false,
       loadingMov: false,
@@ -316,6 +315,7 @@ export default {
       filterTimer: null,
       ventasRequestSeq: 0,
       ventaSel: null,
+      hojaRutaRow: null,
       pagination: { page: 1, rowsPerPage: 25, sortBy: 'id', descending: true },
       filters: {
         date_from: today,
@@ -556,6 +556,16 @@ export default {
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar detalle')
       }
+    },
+    abrirHojaRuta (row) {
+      this.hojaRutaRow = row
+      this.dialogHojaRuta = true
+    },
+    hojaRutaGuardada (venta) {
+      if (this.ventaSel?.id === venta.id) {
+        this.ventaSel = venta
+      }
+      this.ventasGet()
     },
     async getVenta(id) {
       const res = await this.$axios.get(`ventas/${id}`)

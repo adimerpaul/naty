@@ -58,8 +58,6 @@
       <q-card-section class="row items-center q-gutter-sm">
         <div class="text-subtitle1 text-weight-bold">{{ selectedCaja?.nombre || 'Caja' }}</div>
         <q-space />
-        <q-btn color="positive" no-caps icon="add" label="Agregar monto" @click="openManual('ingreso')" />
-        <q-btn color="negative" no-caps icon="remove" label="Quitar monto" @click="openManual('egreso')" />
         <q-btn color="primary" no-caps icon="swap_horiz" label="Transferir entre cajas" @click="openTransfer" />
       </q-card-section>
     </q-card>

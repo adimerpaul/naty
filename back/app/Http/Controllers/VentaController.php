@@ -109,6 +109,27 @@ class VentaController extends Controller
         return $this->withResumen($venta);
     }
 
+    public function updateHojaRuta(Request $request, Venta $venta)
+    {
+        $validated = $request->validate([
+            'hoja_fecha_entrega' => 'nullable|date',
+            'hoja_turno' => 'nullable|string|max:100',
+            'hoja_hora' => 'nullable|date_format:H:i',
+            'hoja_telefono_1' => 'nullable|string|max:50',
+            'hoja_telefono_2' => 'nullable|string|max:50',
+            'hoja_direccion' => 'nullable|string|max:255',
+            'hoja_envases' => 'nullable|string|max:2000',
+            'hoja_cuenta' => 'nullable|numeric|min:0',
+            'hoja_saldo' => 'nullable|numeric|min:0',
+            'hoja_observaciones' => 'nullable|string|max:2000',
+        ]);
+
+        $venta->update($validated);
+        $venta->load(['caja', 'detalles', 'pagos', 'user', 'prestamos.inventario']);
+
+        return $this->withResumen($venta);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -462,7 +483,7 @@ class VentaController extends Controller
         }
 
         DB::transaction(function () use ($venta) {
-            $venta->loadMissing('prestamos');
+            $venta->loadMissing('prestamos.retornos');
 
             $venta->update(['estado' => 'ANULADA']);
             $venta->detalles()->update(['estado' => false]);
@@ -472,10 +493,13 @@ class VentaController extends Controller
                     continue;
                 }
 
+                $cantidadRetornada = (int) ($prestamo->retornos?->sum('cantidad') ?? 0);
+                $cantidadPendiente = max(0, (int) $prestamo->cantidad - $cantidadRetornada);
+
                 $inventario = Inventario::lockForUpdate()->find($prestamo->inventario_id);
-                if ($inventario) {
+                if ($inventario && $cantidadPendiente > 0) {
                     $inventario->update([
-                        'cantidad' => (int) $inventario->cantidad + (int) $prestamo->cantidad,
+                        'cantidad' => (int) $inventario->cantidad + $cantidadPendiente,
                     ]);
                 }
 
