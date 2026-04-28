@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Inventario;
 use App\Models\Pago;
 use App\Models\PersonalPago;
 use App\Models\Producto;
@@ -461,8 +462,31 @@ class VentaController extends Controller
         }
 
         DB::transaction(function () use ($venta) {
+            $venta->loadMissing('prestamos');
+
             $venta->update(['estado' => 'ANULADA']);
             $venta->detalles()->update(['estado' => false]);
+
+            foreach ($venta->prestamos as $prestamo) {
+                if (in_array($prestamo->estado, ['RETORNADO', 'ANULADO'], true)) {
+                    continue;
+                }
+
+                $inventario = Inventario::lockForUpdate()->find($prestamo->inventario_id);
+                if ($inventario) {
+                    $inventario->update([
+                        'cantidad' => (int) $inventario->cantidad + (int) $prestamo->cantidad,
+                    ]);
+                }
+
+                $prestamo->update([
+                    'estado' => 'ANULADO',
+                    'prestado' => false,
+                    'fechaAnulacion' => now()->toDateString(),
+                    'motivoAnulacion' => trim(($prestamo->motivoAnulacion ? $prestamo->motivoAnulacion.' | ' : '').'Venta anulada #'.$venta->id),
+                    'observacion' => trim(($prestamo->observacion ? $prestamo->observacion.' | ' : '').'Inventario retornado por anulacion de venta'),
+                ]);
+            }
 
             // Si este movimiento pertenece a pagos de personal, mantener estados sincronizados.
             $personalPago = PersonalPago::where(function ($q) use ($venta) {

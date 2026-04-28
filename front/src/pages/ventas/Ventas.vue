@@ -211,9 +211,9 @@
                   :rules="[req]"
                 />
               </div>
-              <div class="col-12 col-md-4">
-                <q-input dense outlined readonly label="Pago" model-value="contado" />
-              </div>
+<!--              <div class="col-12 col-md-4">-->
+<!--                <q-input dense outlined readonly label="Pago" model-value="contado" />-->
+<!--              </div>-->
               <div class="col-12 col-md-4">
                 <q-input v-model.number="movForm.monto" dense outlined type="number" min="1" step="1" label="Monto" :rules="[req, entero]" />
               </div>
@@ -234,7 +234,7 @@
                 />
               </div>
             </div>
-            <q-input v-model="movForm.observacion" dense outlined type="textarea" autogrow label="Observacion" class="q-mb-md" />
+            <q-input v-model="movForm.observacion" dense outlined type="textarea" autogrow label="Glosa" class="q-mb-md" />
             <div class="row justify-end q-gutter-sm">
               <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
               <q-btn no-caps color="primary" label="Guardar" type="submit" :loading="loadingMov" />

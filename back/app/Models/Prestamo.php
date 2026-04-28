@@ -25,6 +25,16 @@ class Prestamo extends Model
         'inventario_id',
         'venta_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'fecha' => 'date:Y-m-d',
+            'fechaAnulacion' => 'date:Y-m-d',
+            'prestado' => 'boolean',
+        ];
+    }
+
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
