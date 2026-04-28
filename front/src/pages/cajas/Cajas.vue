@@ -85,7 +85,7 @@
           >
             <template #body-cell-fecha="props">
               <q-td :props="props">
-                <q-btn flat dense no-caps color="primary" :label="props.row.fecha" @click="filtrarFecha(props.row.fecha)" />
+                <q-btn flat dense no-caps color="primary" :label="formatDateOnly(props.row.fecha)" @click="filtrarFecha(props.row.fecha)" />
               </q-td>
             </template>
             <template #body-cell-ingresos="props"><q-td :props="props" class="text-right">{{ money(props.row.ingresos) }}</q-td></template>
@@ -267,6 +267,12 @@ export default {
     },
     req (v) { return !!v || 'Campo requerido' },
     money (n) { return Number(n || 0).toFixed(2) + ' Bs' },
+    formatDateOnly (v) {
+      if (!v) return '-'
+      const parts = String(v).split('T')[0].split('-')
+      if (parts.length !== 3) return v
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
+    },
     formatDate (v) {
       if (!v) return '-'
       const d = new Date(v)

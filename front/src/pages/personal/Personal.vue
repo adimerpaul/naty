@@ -98,6 +98,10 @@
         </q-td>
       </template>
 
+      <template #body-cell-fechaingreso="props">
+        <q-td :props="props">{{ formatDateOnly(props.row.fechaingreso) }}</q-td>
+      </template>
+
       <template #body-cell-salario="props">
         <q-td :props="props" class="text-right">{{ money(props.row.salario) }}</q-td>
       </template>
@@ -173,6 +177,9 @@
             <template #body-cell-total_pagado_salario="props"><q-td :props="props" class="text-right text-weight-bold text-primary">{{ money(props.row.total_pagado_salario) }}</q-td></template>
           </q-table>
           <q-table dense flat bordered :rows="historialRowsFiltrados" :columns="historialCols" row-key="id" :pagination="{ rowsPerPage: 100 }">
+            <template #body-cell-fecha_pago="props">
+              <q-td :props="props">{{ formatDateOnly(props.row.fecha_pago) }}</q-td>
+            </template>
             <template #body-cell-actions="props">
               <q-td :props="props" class="text-left">
                 <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px">
@@ -288,6 +295,12 @@ export default {
   methods: {
     req (v) { return !!v || 'Campo requerido' },
     money (n) { return Number(n || 0).toFixed(2) },
+    formatDateOnly (v) {
+      if (!v) return '-'
+      const parts = String(v).split('T')[0].split('-')
+      if (parts.length !== 3) return v
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
+    },
     imgPersonal (foto) { return `${this.$url}../../images/personales/${foto}` },
     nuevo () {
       this.item = {

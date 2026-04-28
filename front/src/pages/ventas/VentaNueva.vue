@@ -125,6 +125,9 @@
           :loading="loadingHistorial"
           :pagination="{ rowsPerPage: 10 }"
         >
+          <template #body-cell-fecha="props">
+            <q-td :props="props">{{ formatDateOnly(props.row.fecha) }} {{ props.row.hora ? props.row.hora.slice(0, 5) : '' }}</q-td>
+          </template>
           <template #body-cell-actions="props">
             <q-td :props="props">
               <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
@@ -646,6 +649,12 @@ export default {
   methods: {
     req (v) { return !!v || 'Campo requerido' },
     money (n) { return Number(n || 0).toFixed(2) },
+    formatDateOnly (v) {
+      if (!v) return '-'
+      const parts = String(v).split('T')[0].split('-')
+      if (parts.length !== 3) return v
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
+    },
     imgProducto (foto) { return `${this.$url}../../images/productos/${foto}` },
     uid () { return `${Date.now()}-${Math.round(Math.random() * 100000)}` },
     async cargarTodo () {

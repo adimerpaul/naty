@@ -9,6 +9,15 @@
         no-caps
         @click="usarMiUbicacion"
       />
+      <q-btn
+        v-if="hasMarker"
+        dense
+        color="red-7"
+        icon="open_in_new"
+        label="Abrir en Google Maps"
+        no-caps
+        @click="abrirGoogleMaps"
+      />
       <div class="text-caption text-grey-7">
         Haz clic en el mapa para fijar la ubicacion del cliente.
       </div>
@@ -123,6 +132,10 @@ export default {
     },
     mapClick (e) {
       this.emitirUbicacion(e.latlng.lat, e.latlng.lng)
+    },
+    abrirGoogleMaps () {
+      const url = `https://www.google.com/maps?q=${Number(this.lat).toFixed(7)},${Number(this.lng).toFixed(7)}`
+      window.open(url, '_blank')
     },
     usarMiUbicacion () {
       if (!navigator.geolocation) {

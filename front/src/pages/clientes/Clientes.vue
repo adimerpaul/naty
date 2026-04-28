@@ -51,8 +51,26 @@
       </div>
     </div>
 
+    <div class="row items-center q-mb-sm q-gutter-sm">
+      <q-btn-toggle
+        v-model="filtroEstado"
+        no-caps
+        dense
+        rounded
+        unelevated
+        toggle-color="primary"
+        color="white"
+        text-color="primary"
+        :options="[
+          { label: 'Todos', value: 'todos' },
+          { label: 'Activos', value: 'activos' },
+          { label: 'Inactivos', value: 'inactivos' }
+        ]"
+      />
+    </div>
+
     <q-table
-      :rows="clientes"
+      :rows="clientesFiltrados"
       :columns="columns"
       row-key="id"
       dense
@@ -84,23 +102,40 @@
           :loading="loading"
           @click="clientesGet"
         />
-        <q-btn
-          color="indigo"
-          label="Excel"
-          icon="table_view"
+        <q-btn-dropdown
+          color="teal"
+          label="Reportes"
+          icon="description"
           no-caps
           class="q-mr-sm"
-          :loading="loading"
-          @click="exportExcel"
-        />
+          :loading="loading || loadingPdf"
+        >
+          <q-list dense>
+            <q-item clickable v-close-popup @click="exportExcel">
+              <q-item-section avatar>
+                <q-icon name="table_view" color="indigo" />
+              </q-item-section>
+              <q-item-section>Excel</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="exportPdf">
+              <q-item-section avatar>
+                <q-icon name="picture_as_pdf" color="deep-orange" />
+              </q-item-section>
+              <q-item-section>PDF</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
         <q-btn
-          color="deep-orange"
-          label="PDF"
-          icon="picture_as_pdf"
+          color="brown"
+          label="Ubicaciones"
+          icon="map"
           no-caps
-          :loading="loadingPdf"
-          @click="exportPdf"
+          @click="dialogUbicaciones = true"
         />
+      </template>
+
+      <template #body-cell-fechanac="props">
+        <q-td :props="props">{{ formatDateOnly(props.row.fechanac) }}</q-td>
       </template>
 
       <template #body-cell-estado="props">
@@ -225,8 +260,8 @@
                   :rules="[req]"
                 />
               </div>
-              <div class="col-12 col-md-4" v-if="tipoCliente === 'local'">
-                <q-input v-model="cliente.razon" label="Razon social" dense outlined />
+              <div class="col-12 col-md-4">
+                <q-input v-model="cliente.razon_social" label="Razon social" dense outlined />
               </div>
               <div class="col-12">
                 <q-input v-model="cliente.observacion" type="textarea" autogrow label="Observacion" dense outlined />
@@ -263,7 +298,7 @@
         <q-card-section>
           <q-table dense flat bordered :rows="historialVentas" :columns="colsHistorial" row-key="id" hide-pagination @row-click="seleccionarVentaHistorial">
             <template #body-cell-created_at="props">
-              <q-td :props="props">{{ normalDate(props.row.created_at) }}</q-td>
+              <q-td :props="props">{{ formatDateTime(props.row.created_at) }}</q-td>
             </template>
             <template #body-cell-tipo_pago="props">
               <q-td :props="props">
@@ -296,10 +331,50 @@
                 </q-td>
               </template>
               <template #body-cell-fecha_pago="props">
-                <q-td :props="props">{{ normalDate(props.row.fecha_pago) }}</q-td>
+                <q-td :props="props">{{ formatDateOnly(props.row.fecha_pago) }}</q-td>
               </template>
             </q-table>
           </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogUbicaciones" maximized>
+      <q-card>
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">
+            Ubicaciones de clientes
+            <span class="text-caption text-grey-7 q-ml-sm">({{ clientesConUbicacion.length }} con coordenadas)</span>
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section style="height: calc(100vh - 70px); padding: 8px 16px;">
+          <l-map
+            v-if="dialogUbicaciones"
+            style="height: 100%; width: 100%; border-radius: 8px;"
+            :zoom="13"
+            :center="ubicacionesCenter"
+            :use-global-leaflet="false"
+          >
+            <l-tile-layer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              layer-type="base"
+              name="OpenStreetMap"
+            />
+            <l-marker
+              v-for="c in clientesConUbicacion"
+              :key="c.id"
+              :lat-lng="[Number(c.lat), Number(c.lng)]"
+            >
+              <l-popup>
+                <strong>{{ c.nombre }}</strong><br>
+                <span v-if="c.razon_social">R. Social: {{ c.razon_social }}<br></span>
+                <span v-if="c.telefono">Tel: {{ c.telefono }}<br></span>
+                <span v-if="c.direccion">Dir: {{ c.direccion }}<br></span>
+              </l-popup>
+            </l-marker>
+          </l-map>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -308,10 +383,11 @@
 
 <script>
 import ClienteMapa from 'src/components/ClienteMapa.vue'
+import { LMap, LTileLayer, LMarker, LPopup } from '@vue-leaflet/vue-leaflet'
 
 export default {
   name: 'ClientesPage',
-  components: { ClienteMapa },
+  components: { ClienteMapa, LMap, LTileLayer, LMarker, LPopup },
 
   data () {
     return {
@@ -319,6 +395,8 @@ export default {
       cliente: {},
       dialogCliente: false,
       dialogHistorial: false,
+      dialogUbicaciones: false,
+      filtroEstado: 'todos',
       loading: false,
       loadingPdf: false,
       historialCliente: null,
@@ -341,8 +419,9 @@ export default {
         { name: 'telefono', label: 'Telefono', align: 'left', field: 'telefono' },
         { name: 'direccion', label: 'Direccion', align: 'left', field: 'direccion' },
         { name: 'fechanac', label: 'F. Nac.', align: 'left', field: 'fechanac' },
-        { name: 'legalidad', label: 'Legalidad', align: 'left', field: 'legalidad' },
-        { name: 'categoria', label: 'Categoria', align: 'left', field: 'categoria' },
+        // { name: 'legalidad', label: 'Legalidad', align: 'left', field: 'legalidad' },
+        // { name: 'categoria', label: 'Categoria', align: 'left', field: 'categoria' },
+        { name: 'razon_social', label: 'Razon social', align: 'left', field: 'razon_social' },
         { name: 'nit', label: 'NIT', align: 'left', field: 'nit' },
         { name: 'lat', label: 'Lat', align: 'left', field: 'lat' },
         { name: 'lng', label: 'Lng', align: 'left', field: 'lng' },
@@ -395,6 +474,21 @@ export default {
         activos,
         inactivos: total - activos
       }
+    },
+    clientesFiltrados () {
+      if (this.filtroEstado === 'activos') return this.clientes.filter(c => !!c.estado)
+      if (this.filtroEstado === 'inactivos') return this.clientes.filter(c => !c.estado)
+      return this.clientes
+    },
+    clientesConUbicacion () {
+      return this.clientes.filter(c => c.lat && c.lng)
+    },
+    ubicacionesCenter () {
+      const lista = this.clientesConUbicacion
+      if (lista.length === 0) return [-17.9647, -67.1060]
+      const sumLat = lista.reduce((s, c) => s + Number(c.lat), 0)
+      const sumLng = lista.reduce((s, c) => s + Number(c.lng), 0)
+      return [sumLat / lista.length, sumLng / lista.length]
     }
   },
 
@@ -415,12 +509,22 @@ export default {
     money (n) {
       return Number(n || 0).toFixed(2)
     },
-    normalDate (value) {
-      if (!value) return '-'
-      return String(value)
-        .replace('T', ' ')
-        .replace('.000000Z', '')
-        .replace('.000Z', '')
+    formatDateTime (v) {
+      if (!v) return '-'
+      const d = new Date(v)
+      if (Number.isNaN(d.getTime())) return v
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const yy = d.getFullYear()
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mi = String(d.getMinutes()).padStart(2, '0')
+      return `${dd}/${mm}/${yy} ${hh}:${mi}`
+    },
+    formatDateOnly (v) {
+      if (!v) return '-'
+      const parts = String(v).split('T')[0].split('-')
+      if (parts.length !== 3) return v
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
     },
     chipColor (estado) {
       if (estado === 'PAGADO') return 'positive'
@@ -441,7 +545,7 @@ export default {
         fechanac: null,
         legalidad: '',
         categoria: '',
-        razon: '',
+        razon_social: '',
         nit: '',
         observacion: '',
         lat: null,
@@ -521,7 +625,7 @@ export default {
     },
 
     exportExcel () {
-      const headers = ['ID', 'Nombre', 'Local', 'Titular', 'Tipo', 'Tipo cliente', 'CI', 'Telefono', 'Direccion', 'Fecha nac.', 'Legalidad', 'Categoria', 'NIT', 'Razon', 'Observacion', 'Lat', 'Lng', 'Estado']
+      const headers = ['ID', 'Nombre', 'Local', 'Titular', 'Tipo', 'Tipo cliente', 'CI', 'Telefono', 'Direccion', 'Fecha nac.', 'Legalidad', 'Categoria', 'Razon social', 'NIT', 'Observacion', 'Lat', 'Lng', 'Estado']
       const trs = this.clientes.map(r => `
         <tr>
           <td>${r.id ?? ''}</td>
@@ -536,8 +640,8 @@ export default {
           <td>${r.fechanac ?? ''}</td>
           <td>${r.legalidad ?? ''}</td>
           <td>${r.categoria ?? ''}</td>
+          <td>${r.razon_social ?? ''}</td>
           <td>${r.nit ?? ''}</td>
-          <td>${r.razon ?? ''}</td>
           <td>${r.observacion ?? ''}</td>
           <td>${r.lat ?? ''}</td>
           <td>${r.lng ?? ''}</td>

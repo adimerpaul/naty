@@ -25,6 +25,7 @@
         <th>CI</th>
         <th>Telefono</th>
         <th>Direccion</th>
+        <th>Razon social</th>
         <th>Observacion</th>
         <th>Lat</th>
         <th>Lng</th>
@@ -40,6 +41,7 @@
             <td>{{ $c->ci }}</td>
             <td>{{ $c->telefono }}</td>
             <td>{{ $c->direccion }}</td>
+            <td>{{ $c->razon_social }}</td>
             <td>{{ $c->observacion }}</td>
             <td>{{ $c->lat }}</td>
             <td>{{ $c->lng }}</td>

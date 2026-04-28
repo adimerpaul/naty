@@ -22,7 +22,7 @@ class Cliente extends Model
         'fechanac',
         'legalidad',
         'categoria',
-        'razon',
+        'razon_social',
         'nit',
         'observacion',
         'lat',

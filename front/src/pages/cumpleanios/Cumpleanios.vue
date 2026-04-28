@@ -56,6 +56,10 @@
         </q-td>
       </template>
 
+      <template #body-cell-fechanac="props">
+        <q-td :props="props">{{ formatDateOnly(props.row.fechanac) }}</q-td>
+      </template>
+
       <template #body-cell-origen="props">
         <q-td :props="props">
           <q-chip dense :color="props.row.origen === 'personal' ? 'indigo' : 'teal'" text-color="white">
@@ -93,7 +97,7 @@
             row-key="id"
             :pagination="{ rowsPerPage: 100 }"
           >
-            <template #body-cell-created_at="props"><q-td :props="props">{{ normalDate(props.row.created_at) }}</q-td></template>
+            <template #body-cell-created_at="props"><q-td :props="props">{{ formatDateTime(props.row.created_at) }}</q-td></template>
             <template #body-cell-total="props"><q-td :props="props" class="text-right">{{ money(props.row.total) }}</q-td></template>
             <template #body-cell-total_pagado="props"><q-td :props="props" class="text-right">{{ money(props.row.total_pagado) }}</q-td></template>
             <template #body-cell-saldo_pendiente="props"><q-td :props="props" class="text-right">{{ money(props.row.saldo_pendiente) }}</q-td></template>
@@ -110,6 +114,7 @@
             :pagination="{ rowsPerPage: 100 }"
           >
             <template #body-cell-monto_pagado="props"><q-td :props="props" class="text-right">{{ money(props.row.monto_pagado) }}</q-td></template>
+            <template #body-cell-fecha_pago="props"><q-td :props="props">{{ formatDateOnly(props.row.fecha_pago) }}</q-td></template>
           </q-table>
         </q-card-section>
       </q-card>
@@ -166,9 +171,22 @@ export default {
   },
   methods: {
     money (n) { return Number(n || 0).toFixed(2) + ' Bs' },
-    normalDate (value) {
-      if (!value) return '-'
-      return String(value).replace('T', ' ').replace('.000000Z', '').replace('.000Z', '')
+    formatDateTime (v) {
+      if (!v) return '-'
+      const d = new Date(v)
+      if (Number.isNaN(d.getTime())) return v
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const yy = d.getFullYear()
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mi = String(d.getMinutes()).padStart(2, '0')
+      return `${dd}/${mm}/${yy} ${hh}:${mi}`
+    },
+    formatDateOnly (v) {
+      if (!v) return '-'
+      const parts = String(v).split('T')[0].split('-')
+      if (parts.length !== 3) return v
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
     },
     rowKey (r) {
       return `${r.origen}-${r.id}`

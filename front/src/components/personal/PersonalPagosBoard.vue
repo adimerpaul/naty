@@ -85,7 +85,7 @@
             <q-input dense outlined label="Caja" :model-value="dialogCajaLabel" readonly />
           </div>
           <div class="col-12 col-md-2">
-            <q-input dense outlined label="Fecha" :model-value="dialogForm.fecha_pago || '-'" readonly />
+            <q-input dense outlined label="Fecha" :model-value="formatDateOnly(dialogForm.fecha_pago)" readonly />
           </div>
           <div class="col-12 col-md-2">
             <q-input dense outlined label="Registro" :model-value="dialogRegistroLabel" readonly />
@@ -113,6 +113,9 @@
           :loading="loadingHistory"
           :pagination="{ rowsPerPage: 100 }"
         >
+          <template #body-cell-fecha_pago="props">
+            <q-td :props="props">{{ formatDateOnly(props.row.fecha_pago) }}</q-td>
+          </template>
           <template #body-cell-tipo_registro="props">
             <q-td :props="props">
               <q-chip dense :color="tipoColor(props.row.tipo_registro)" text-color="white">{{ props.row.tipo_registro }}</q-chip>
@@ -372,6 +375,12 @@ export default {
     },
     req (v) {
       return !!v || 'Campo requerido'
+    },
+    formatDateOnly (v) {
+      if (!v) return '-'
+      const parts = String(v).split('T')[0].split('-')
+      if (parts.length !== 3) return v
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
     },
     reqMonto (v) {
       return Number(v || 0) > 0 || 'Ingrese un monto valido'
