@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <title>Reporte de Clientes</title>
     <style>
+        @page { margin: 1.2cm 1.5cm; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1a1a2e; background: #fff; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1a1a2e; background: #fff; padding: 0; }
 
         .header {
             display: table;
             width: 100%;
             border-bottom: 3px solid #1565c0;
-            padding-bottom: 10px;
-            margin-bottom: 14px;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
         }
         .header-logo { display: table-cell; width: 80px; vertical-align: middle; }
         .header-logo img { width: 64px; height: 64px; object-fit: contain; }
@@ -51,10 +52,10 @@
 
         table { width: 100%; border-collapse: collapse; }
         thead tr { background: #1565c0; color: #fff; }
-        thead th { padding: 6px 7px; font-size: 10px; text-align: left; letter-spacing: 0.3px; }
+        thead th { padding: 8px 10px; font-size: 10px; text-align: left; letter-spacing: 0.3px; }
         tbody tr:nth-child(even) { background: #f5f9ff; }
         tbody tr:nth-child(odd) { background: #fff; }
-        tbody td { padding: 5px 7px; border-bottom: 1px solid #e8edf5; font-size: 10px; vertical-align: top; }
+        tbody td { padding: 7px 10px; border-bottom: 1px solid #e8edf5; font-size: 10px; vertical-align: top; }
         tbody tr:last-child td { border-bottom: none; }
         .badge-activo { background: #c8f7c5; color: #1a7a1a; padding: 1px 6px; border-radius: 8px; font-size: 9px; }
         .badge-inactivo { background: #ffe0e0; color: #b00; padding: 1px 6px; border-radius: 8px; font-size: 9px; }

@@ -665,7 +665,8 @@ export default {
       try {
         const res = await this.$axios.get('clientes/pdf', {
           params: { tipo_cliente: this.tipoCliente },
-          responseType: 'blob'
+          responseType: 'blob',
+          timeout: 90000
         })
 
         const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))

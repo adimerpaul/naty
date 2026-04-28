@@ -104,7 +104,12 @@ class ClienteController extends Controller
 
     public function pdf(Request $request)
     {
-        $query = Cliente::query()->orderBy('id', 'desc');
+        ini_set('memory_limit', '512M');
+        set_time_limit(120);
+
+        $query = Cliente::query()
+            ->select(['id', 'nombre', 'titular', 'tipo_cliente', 'ci', 'telefono', 'direccion', 'razon_social', 'nit', 'fechanac', 'observacion', 'estado'])
+            ->orderBy('id', 'desc');
 
         if ($request->filled('tipo_cliente')) {
             $query->where('tipo_cliente', $request->tipo_cliente);
@@ -122,7 +127,14 @@ class ClienteController extends Controller
             'tipo' => $tipo,
             'usuario' => auth()->user()?->name ?? 'Sistema',
             'logo' => $logoBase64,
-        ])->setPaper('a4', 'landscape');
+        ])
+        ->setPaper('a4', 'landscape')
+        ->setOptions([
+            'dpi' => 96,
+            'isRemoteEnabled' => false,
+            'isHtml5ParserEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+        ]);
 
         return $pdf->download('clientes-' . $tipo . '.pdf');
     }
