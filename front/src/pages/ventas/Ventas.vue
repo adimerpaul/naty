@@ -9,7 +9,6 @@
         <q-space />
         <q-btn color="primary" no-caps icon="add" label="Nueva venta" @click="irNuevaVenta" class="q-mr-sm" />
         <q-btn color="secondary" no-caps icon="account_balance_wallet" label="Ingreso / Egreso" @click="abrirMovimiento" class="q-mr-sm" />
-        <q-btn color="grey-8" flat no-caps icon="search" label="Buscar" @click="ventasGet" :loading="loading" class="q-mr-sm" />
         <q-btn color="grey-8" flat no-caps icon="refresh" label="Actualizar" @click="ventasGet" :loading="loading" />
       </q-card-section>
     </q-card>
@@ -41,7 +40,7 @@
       <div class="col-12 col-md-3">
         <q-select v-model="filters.cliente_id" dense outlined emit-value map-options :options="clienteOptions" label="Cliente" clearable />
       </div>
-      <div class="col-12 col-md-3"><q-input v-model="filters.search" dense outlined label="Buscar" @keyup.enter="ventasGet" /></div>
+      <div class="col-12 col-md-3"><q-input v-model="filters.search" dense outlined label="Buscar" /></div>
     </div>
 
     <div class="row q-col-gutter-md q-mb-md">
@@ -314,6 +313,8 @@ export default {
       dialogEditar: false,
       loadingMov: false,
       loadingEdit: false,
+      filterTimer: null,
+      ventasRequestSeq: 0,
       ventaSel: null,
       pagination: { page: 1, rowsPerPage: 25, sortBy: 'id', descending: true },
       filters: {
@@ -401,7 +402,16 @@ export default {
     clienteOptions () { return this.clientes.map(c => ({ label: c.nombre, value: c.id })) }
   },
   watch: {
-    '$route.params.tipo' () { this.cargarCombos(); this.ventasGet() }
+    '$route.params.tipo' () { this.cargarCombos(); this.ventasGet() },
+    filters: {
+      deep: true,
+      handler () {
+        this.scheduleVentasGet()
+      }
+    }
+  },
+  beforeUnmount () {
+    if (this.filterTimer) clearTimeout(this.filterTimer)
   },
   mounted () {
     this.cargarCombos()
@@ -435,7 +445,20 @@ export default {
       this.users = u.data || []
       this.clientes = c.data || []
     },
+    scheduleVentasGet () {
+      if (this.filterTimer) clearTimeout(this.filterTimer)
+      this.filterTimer = setTimeout(() => {
+        this.filterTimer = null
+        this.pagination.page = 1
+        this.ventasGet()
+      }, 300)
+    },
     ventasGet () {
+      if (this.filterTimer) {
+        clearTimeout(this.filterTimer)
+        this.filterTimer = null
+      }
+      const requestSeq = ++this.ventasRequestSeq
       this.loading = true
       this.$axios.get('ventas', {
         params: {
@@ -449,9 +472,21 @@ export default {
           cliente_id: this.filters.cliente_id,
           search: this.filters.search
         }
-      }).then(r => { this.ventas = r.data })
-        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cargar ventas'))
-        .finally(() => { this.loading = false })
+      }).then(r => {
+        if (requestSeq === this.ventasRequestSeq) {
+          this.ventas = r.data
+        }
+      })
+        .catch(e => {
+          if (requestSeq === this.ventasRequestSeq) {
+            this.$alert.error(e.response?.data?.message || 'No se pudo cargar ventas')
+          }
+        })
+        .finally(() => {
+          if (requestSeq === this.ventasRequestSeq) {
+            this.loading = false
+          }
+        })
     },
     irNuevaVenta () { this.$router.push(`/ventas/${this.tipoVenta}/nueva`) },
     abrirMovimiento () {

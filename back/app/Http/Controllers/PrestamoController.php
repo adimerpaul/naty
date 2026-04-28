@@ -11,6 +11,7 @@ use App\Models\VentaDetalle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PrestamoController extends Controller
 {
@@ -20,6 +21,16 @@ class PrestamoController extends Controller
         if ($request->filled('tipo')) {
             $query->where('tipo', $request->tipo);
         }
+        if ($request->filled('tipo_venta')) {
+            $tipoVenta = $request->validate([
+                'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
+            ])['tipo_venta'] ?? null;
+
+            if ($tipoVenta) {
+                $query->whereHas('cliente', fn ($q) => $q->where('tipo_cliente', $tipoVenta));
+            }
+        }
+
         return $query->get();
     }
 
@@ -40,6 +51,13 @@ class PrestamoController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
+            $cliente = Cliente::findOrFail($validated['cliente_id']);
+            if (! empty($validated['tipo_venta']) && $cliente->tipo_cliente !== $validated['tipo_venta']) {
+                throw ValidationException::withMessages([
+                    'cliente_id' => 'El cliente no corresponde al tipo de prestamo seleccionado.',
+                ]);
+            }
+
             $inv = Inventario::lockForUpdate()->findOrFail($validated['inventario_id']);
             if ($inv->cantidad < (int) $validated['cantidad']) {
                 return response()->json(['message' => 'No hay cantidad suficiente en inventario'], 422);
@@ -48,7 +66,6 @@ class PrestamoController extends Controller
             $inv->update(['cantidad' => $inv->cantidad - (int) $validated['cantidad']]);
 
             $ventaGenerada = null;
-            $cliente = Cliente::find($validated['cliente_id']);
             if ($validated['tipo'] === 'venta') {
                 $monto = (float) ($validated['efectivo'] ?? 0);
                 if ($monto <= 0) {
@@ -65,7 +82,7 @@ class PrestamoController extends Controller
                     'cliente_nombre' => $cliente?->nombre,
                     'cliente_telefono' => $cliente?->telefono,
                     'cliente_direccion' => $cliente?->direccion,
-                    'observacion' => 'Venta de material inventario. ' . ($validated['observacion'] ?? ''),
+                    'observacion' => 'Venta de material inventario. '.($validated['observacion'] ?? ''),
                     'total' => round($monto, 2),
                 ]);
                 VentaDetalle::create([
@@ -73,8 +90,8 @@ class PrestamoController extends Controller
                     'producto_id' => null,
                     'user_id' => $request->user()->id ?? null,
                     'producto_nombre' => "Material: {$inv->nombre}",
-                    'precio' => round($monto / max((int)$validated['cantidad'], 1), 2),
-                    'cantidad' => (int)$validated['cantidad'],
+                    'precio' => round($monto / max((int) $validated['cantidad'], 1), 2),
+                    'cantidad' => (int) $validated['cantidad'],
                     'subtotal' => round($monto, 2),
                     'estado' => true,
                 ]);
@@ -124,7 +141,7 @@ class PrestamoController extends Controller
             $prestamo->update([
                 'estado' => 'RETORNADO',
                 'prestado' => false,
-                'observacion' => trim(($prestamo->observacion ? $prestamo->observacion . ' | ' : '') . 'Retornado'),
+                'observacion' => trim(($prestamo->observacion ? $prestamo->observacion.' | ' : '').'Retornado'),
             ]);
 
             return $prestamo->load(['cliente', 'inventario', 'venta']);

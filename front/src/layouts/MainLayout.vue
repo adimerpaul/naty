@@ -294,6 +294,10 @@
                 <q-item-section avatar><q-icon name="add_shopping_cart" size="xs" color="primary" /></q-item-section>
                 <q-item-section><q-item-label>Crear venta detalle</q-item-label></q-item-section>
               </q-item>
+              <q-item dense to="/prestamos/detalle" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
+                <q-item-section avatar><q-icon name="inventory_2" size="xs" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Prestamo detalle</q-item-label></q-item-section>
+              </q-item>
               <q-item dense to="/deudas/detalle" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Detalle') || isAdmin">
                 <q-item-section avatar><q-icon name="payments" size="xs" color="primary" /></q-item-section>
                 <q-item-section><q-item-label>Deuda detalle</q-item-label></q-item-section>
@@ -339,6 +343,10 @@
               <q-item dense to="/ventas/local/nueva" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
                 <q-item-section avatar><q-icon name="add_shopping_cart" size="xs" color="primary" /></q-item-section>
                 <q-item-section><q-item-label>Crear venta local</q-item-label></q-item-section>
+              </q-item>
+              <q-item dense to="/prestamos/local" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
+                <q-item-section avatar><q-icon name="inventory_2" size="xs" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Prestamo local</q-item-label></q-item-section>
               </q-item>
               <q-item dense to="/deudas/local" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Venta Local') || isAdmin">
                 <q-item-section avatar><q-icon name="account_balance" size="xs" color="primary" /></q-item-section>
