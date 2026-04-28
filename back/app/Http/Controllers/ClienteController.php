@@ -70,11 +70,14 @@ class ClienteController extends Controller
             'estado' => 'nullable|boolean',
         ]);
 
-        $existeCi = Cliente::where('ci', $validated['ci'] ?? null)
-            ->where('id', '!=', $cliente->id)
-            ->exists();
-        if ($existeCi) {
-            return response()->json(['message' => 'El CI ya está registrado para otro cliente'], 422);
+        $ci = $validated['ci'] ?? null;
+        if (!empty($ci)) {
+            $existeCi = Cliente::where('ci', $ci)->where('id', '!=', $cliente->id)
+                ->where('tipo_cliente', $validated['tipo_cliente'])
+                ->exists();
+            if ($existeCi) {
+                return response()->json(['message' => 'El CI ya está registrado para otro cliente'], 422);
+            }
         }
 
         $validated['tipo_cliente'] = $validated['tipo_cliente'] ?? $cliente->tipo_cliente;
@@ -100,10 +103,16 @@ class ClienteController extends Controller
 
         $clientes = $query->get();
         $tipo = $request->tipo_cliente ?: 'todos';
+        $logoPath = public_path('images/logo.png');
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
 
         $pdf = Pdf::loadView('pdf.clientes', [
             'clientes' => $clientes,
             'tipo' => $tipo,
+            'usuario' => auth()->user()?->name ?? 'Sistema',
+            'logo' => $logoBase64,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download('clientes-' . $tipo . '.pdf');

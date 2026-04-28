@@ -51,21 +51,27 @@
       </div>
     </div>
 
-    <div class="row items-center q-mb-sm q-gutter-sm">
-      <q-btn-toggle
-        v-model="filtroEstado"
-        no-caps
-        dense
-        rounded
-        unelevated
-        toggle-color="primary"
-        color="white"
-        text-color="primary"
-        :options="[
-          { label: 'Todos', value: 'todos' },
-          { label: 'Activos', value: 'activos' },
-          { label: 'Inactivos', value: 'inactivos' }
-        ]"
+    <div class="row items-center q-mb-sm q-gutter-xs">
+      <q-btn
+        no-caps dense unelevated
+        :color="filtroEstado === 'todos' ? 'primary' : 'grey-3'"
+        :text-color="filtroEstado === 'todos' ? 'white' : 'grey-8'"
+        label="Todos"
+        @click="filtroEstado = 'todos'"
+      />
+      <q-btn
+        no-caps dense unelevated
+        :color="filtroEstado === 'activos' ? 'positive' : 'grey-3'"
+        :text-color="filtroEstado === 'activos' ? 'white' : 'grey-8'"
+        label="Activos"
+        @click="filtroEstado = 'activos'"
+      />
+      <q-btn
+        no-caps dense unelevated
+        :color="filtroEstado === 'inactivos' ? 'negative' : 'grey-3'"
+        :text-color="filtroEstado === 'inactivos' ? 'white' : 'grey-8'"
+        label="Inactivos"
+        @click="filtroEstado = 'inactivos'"
       />
     </div>
 
@@ -277,7 +283,8 @@
               </div>
             </div>
 
-            <q-toggle v-model="cliente.estado" label="Activo" color="positive" class="q-mb-md" />
+            <q-toggle v-model="cliente.estado" label="Activo" color="positive" class="q-mb-md" :trueValue="1" :falseValue="0" />
+<!--            <pre>{{cliente}}</pre>-->
 
             <div class="row justify-end q-gutter-sm">
               <q-btn color="negative" flat no-caps label="Cancelar" @click="dialogCliente = false" :disable="loading" />
@@ -476,8 +483,8 @@ export default {
       }
     },
     clientesFiltrados () {
-      if (this.filtroEstado === 'activos') return this.clientes.filter(c => !!c.estado)
-      if (this.filtroEstado === 'inactivos') return this.clientes.filter(c => !c.estado)
+      if (this.filtroEstado === 'activos') return this.clientes.filter(c => Number(c.estado) === 1)
+      if (this.filtroEstado === 'inactivos') return this.clientes.filter(c => Number(c.estado) !== 1)
       return this.clientes
     },
     clientesConUbicacion () {
@@ -625,29 +632,16 @@ export default {
     },
 
     exportExcel () {
-      const headers = ['ID', 'Nombre', 'Local', 'Titular', 'Tipo', 'Tipo cliente', 'CI', 'Telefono', 'Direccion', 'Fecha nac.', 'Legalidad', 'Categoria', 'Razon social', 'NIT', 'Observacion', 'Lat', 'Lng', 'Estado']
-      const trs = this.clientes.map(r => `
-        <tr>
-          <td>${r.id ?? ''}</td>
-          <td>${r.nombre ?? ''}</td>
-          <td>${r.local ?? ''}</td>
-          <td>${r.titular ?? ''}</td>
-          <td>${r.tipo ?? ''}</td>
-          <td>${r.tipo_cliente ?? ''}</td>
-          <td>${r.ci ?? ''}</td>
-          <td>${r.telefono ?? ''}</td>
-          <td>${r.direccion ?? ''}</td>
-          <td>${r.fechanac ?? ''}</td>
-          <td>${r.legalidad ?? ''}</td>
-          <td>${r.categoria ?? ''}</td>
-          <td>${r.razon_social ?? ''}</td>
-          <td>${r.nit ?? ''}</td>
-          <td>${r.observacion ?? ''}</td>
-          <td>${r.lat ?? ''}</td>
-          <td>${r.lng ?? ''}</td>
-          <td>${r.estado ? 'Activo' : 'Inactivo'}</td>
-        </tr>
-      `).join('')
+      const exportCols = this.columns.filter(c => c.name !== 'actions' && c.field)
+      const headers = exportCols.map(c => c.label)
+      const trs = this.clientesFiltrados.map(r => {
+        const cells = exportCols.map(col => {
+          if (col.name === 'estado') return Number(r.estado) === 1 ? 'Activo' : 'Inactivo'
+          if (col.name === 'fechanac') return this.formatDateOnly(r.fechanac)
+          return r[col.field] ?? ''
+        })
+        return `<tr>${cells.map(v => `<td>${v}</td>`).join('')}</tr>`
+      }).join('')
 
       const html = `
         <table border="1">
