@@ -1033,7 +1033,7 @@ Oruro</div>
           </thead>
           <tbody>${rowsPrestamo}</tbody>
         </table>` : ''}
-        <div style="margin-top:10px;font-size:16px;"><b>TOTAL: ${Number(venta.total || 0).toFixed(2)} Bs</b></div>
+<!--        <div style="margin-top:10px;font-size:16px;"><b>TOTAL: ${Number(venta.total || 0).toFixed(2)} Bs</b></div>-->
         <div style="margin-top:6px;">Observacion: ${venta.observacion || ''}</div>
       </div>
     `;

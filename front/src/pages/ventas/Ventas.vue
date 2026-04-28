@@ -135,19 +135,11 @@
               </q-item>
               <q-item clickable v-close-popup @click="imprimirFicha(props.row)">
                 <q-item-section avatar><q-icon name="print" color="deep-orange" /></q-item-section>
-                <q-item-section>Imprimir ficha</q-item-section>
+                <q-item-section>Imprimir</q-item-section>
               </q-item>
               <q-item clickable v-close-popup :disable="!props.row.cuf" @click="imprimirImpuestos(props.row)">
                 <q-item-section avatar><q-icon name="verified" color="primary" /></q-item-section>
                 <q-item-section>Imprimir impuestos</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="imprimirHojaRuta(props.row)">
-                <q-item-section avatar><q-icon name="receipt_long" color="indigo" /></q-item-section>
-                <q-item-section>Imprimir hoja ruta</q-item-section>
-              </q-item>
-              <q-item clickable v-close-popup @click="descargarPdf(props.row)">
-                <q-item-section avatar><q-icon name="picture_as_pdf" color="negative" /></q-item-section>
-                <q-item-section>Descargar PDF</q-item-section>
               </q-item>
               <q-item clickable v-close-popup @click="enviarWhatsapp(props.row)">
                 <q-item-section avatar><q-icon name="fa-brands fa-whatsapp" color="positive" /></q-item-section>
@@ -555,30 +547,6 @@ export default {
       const baseUrl = String(env.url2).endsWith('/') ? env.url2 : `${env.url2}/`
       const url = `${baseUrl}consulta/QR?nit=${env.nit}&cuf=${row.cuf}&numero=${row.id}&t=2`
       window.open(url, '_blank', 'noopener')
-    },
-    async imprimirHojaRuta(row) {
-      try {
-        const venta = await this.getVenta(row.id)
-        Imprimir.hojaRuta(venta)
-      } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo imprimir hoja de ruta')
-      }
-    },
-    async descargarPdf(row) {
-      try {
-        const res = await this.$axios.get(`ventas/${row.id}/pdf`, { responseType: 'blob' })
-        const blob = new Blob([res.data], { type: 'application/pdf' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `venta-${row.id}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        window.URL.revokeObjectURL(url)
-      } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo descargar PDF')
-      }
     },
     enviarWhatsapp(row) {
       let telefono = (row.cliente_telefono || '').replace(/\D/g, '')

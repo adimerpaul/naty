@@ -230,6 +230,7 @@
           row-key="id"
           :loading="loadingHistorial"
           :rows-per-page-options="[0]"
+          :table-row-class-fn="historialRowClass"
         >
           <template #body-cell-fecha="props">
             <q-td :props="props">{{ formatDateOnly(props.row.fecha) }} {{ props.row.hora ? props.row.hora.slice(0, 5) : '' }}</q-td>
@@ -238,9 +239,21 @@
             <q-td :props="props">
               <q-btn-dropdown dense color="primary" label="Opciones" no-caps>
                 <q-list dense>
+                  <q-item clickable v-close-popup @click="verVenta(props.row)">
+                    <q-item-section avatar><q-icon name="visibility" color="primary" /></q-item-section>
+                    <q-item-section>Ver</q-item-section>
+                  </q-item>
+                  <q-item clickable v-close-popup @click="imprimirVenta(props.row)">
+                    <q-item-section avatar><q-icon name="print" color="deep-orange" /></q-item-section>
+                    <q-item-section>Imprimir</q-item-section>
+                  </q-item>
                   <q-item clickable v-close-popup :disable="!props.row.cuf" @click="imprimirImpuestos(props.row)">
                     <q-item-section avatar><q-icon name="verified" color="primary" /></q-item-section>
                     <q-item-section>Imprimir impuestos</q-item-section>
+                  </q-item>
+                  <q-item clickable v-close-popup :disable="props.row.estado === 'ANULADA'" @click="anularVenta(props.row)">
+                    <q-item-section avatar><q-icon name="block" color="negative" /></q-item-section>
+                    <q-item-section>Anular</q-item-section>
                   </q-item>
                 </q-list>
               </q-btn-dropdown>
@@ -250,6 +263,13 @@
             <q-td :props="props">
               <q-chip dense :color="props.row.tiene_prestamo ? 'orange' : 'grey-5'" text-color="white">
                 {{ props.row.tiene_prestamo ? `Si (${props.row.prestamos_count || 0})` : 'No' }}
+              </q-chip>
+            </q-td>
+          </template>
+          <template #body-cell-facturado="props">
+            <q-td :props="props">
+              <q-chip dense :color="props.row.facturado ? 'positive' : 'grey-5'" text-color="white">
+                {{ props.row.facturado ? 'Si' : 'No' }}
               </q-chip>
             </q-td>
           </template>
@@ -269,6 +289,49 @@
         </q-table>
       </q-card-section>
     </q-card>
+
+    <q-dialog v-model="dialogDetalle">
+      <q-card style="width: 920px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Venta #{{ ventaSel?.id }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div class="row q-col-gutter-sm q-mb-sm">
+            <div class="col-12 col-md-4"><b>Cliente:</b> {{ ventaSel?.cliente_nombre || '-' }}</div>
+            <div class="col-6 col-md-2"><b>Fecha:</b> {{ formatDateOnly(ventaSel?.fecha) }}</div>
+            <div class="col-6 col-md-2"><b>Estado:</b> {{ ventaSel?.estado || '-' }}</div>
+            <div class="col-6 col-md-2"><b>Facturado:</b> {{ ventaSel?.facturado ? 'Si' : 'No' }}</div>
+            <div class="col-6 col-md-2"><b>Total:</b> {{ money(ventaSel?.total) }} Bs</div>
+            <div class="col-12 col-md-4"><b>Usuario:</b> {{ ventaSel?.user?.name || ventaSel?.user?.username || '-' }}</div>
+            <div class="col-12 col-md-4"><b>Telefono:</b> {{ ventaSel?.cliente_telefono || '-' }}</div>
+            <div class="col-12 col-md-4"><b>Direccion:</b> {{ ventaSel?.cliente_direccion || '-' }}</div>
+            <div class="col-12"><b>Observacion:</b> {{ ventaSel?.observacion || '-' }}</div>
+          </div>
+
+          <div class="text-subtitle2 q-mb-xs">Productos</div>
+          <q-table dense flat bordered :rows="ventaSel?.detalles || []" :columns="colsDetalle" row-key="id" hide-pagination>
+            <template #body-cell-precio="props">
+              <q-td :props="props" class="text-right">{{ money(props.row.precio) }}</q-td>
+            </template>
+            <template #body-cell-subtotal="props">
+              <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.subtotal) }}</q-td>
+            </template>
+          </q-table>
+
+          <div class="text-subtitle2 q-mt-md q-mb-xs">Prestamos / material</div>
+          <q-table dense flat bordered :rows="ventaSel?.prestamos || []" :columns="colsPrestamos" row-key="id" hide-pagination>
+            <template #body-cell-inventario="props">
+              <q-td :props="props">{{ props.row.inventario?.nombre || '-' }}</q-td>
+            </template>
+            <template #body-cell-efectivo="props">
+              <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+            </template>
+          </q-table>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <q-dialog v-model="dialogClienteNuevo">
       <q-card style="width: 760px; max-width: 96vw;">
@@ -516,6 +579,7 @@ export default {
       carrito: [],
       search: '',
       filtroGrupo: 'todos',
+      dialogDetalle: false,
       dialogClienteNuevo: false,
       dialogGarantiaAsk: false,
       dialogGarantia: false,
@@ -524,6 +588,7 @@ export default {
       loadingGarantia: false,
       loadingHistorial: false,
       ventaCreada: null,
+      ventaSel: null,
       historial: {
         date_from: new Date().toISOString().slice(0, 10),
         date_to: new Date().toISOString().slice(0, 10)
@@ -568,9 +633,23 @@ export default {
         { name: 'fecha', label: 'Fecha', field: row => `${row.fecha || ''} ${row.hora || ''}`.trim(), align: 'left' },
         { name: 'cliente_nombre', label: 'Cliente', field: 'cliente_nombre', align: 'left' },
         { name: 'prestamo', label: 'Prestamo', field: row => row.tiene_prestamo, align: 'left' },
-        { name: 'tipo_pago', label: 'Pago', field: 'tipo_pago', align: 'left' },
+        { name: 'facturado', label: 'Facturado', field: 'facturado', align: 'left' },
         { name: 'total', label: 'Total', field: 'total', align: 'right' },
         { name: 'user', label: 'Usuario', field: row => row.user?.name || '-', align: 'left' }
+      ],
+      colsDetalle: [
+        { name: 'producto_nombre', label: 'Producto / Concepto', field: 'producto_nombre', align: 'left' },
+        { name: 'precio', label: 'Precio', field: 'precio', align: 'right' },
+        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'subtotal', label: 'Subtotal', field: 'subtotal', align: 'right' }
+      ],
+      colsPrestamos: [
+        { name: 'inventario', label: 'Material', field: row => row.inventario?.nombre || '-', align: 'left' },
+        { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
+        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'fisico', label: 'Fisico', field: 'fisico', align: 'left' },
+        { name: 'efectivo', label: 'Efectivo', field: 'efectivo', align: 'right' },
+        { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
       ]
     }
   },
@@ -594,6 +673,7 @@ export default {
   },
   watch: {
     'garantia.inventario_id' () {
+      this.garantia.efectivo_manual = false
       this.recalcularPrecioGarantia()
     },
     'garantia.cantidad' () {
@@ -612,6 +692,9 @@ export default {
       if (parts.length !== 3) return v
       return `${parts[2]}/${parts[1]}/${parts[0]}`
     },
+    historialRowClass (row) {
+      return row.estado === 'ANULADA' ? 'historial-row-anulada' : ''
+    },
     imgProducto (foto) { return `${this.$url}../../images/productos/${foto}` },
     uid () { return `${Date.now()}-${Math.round(Math.random() * 100000)}` },
     async cargarTodo () {
@@ -629,6 +712,10 @@ export default {
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar datos de venta')
       }
+    },
+    async cargarInventarios () {
+      const inv = await this.$axios.get('inventarios')
+      this.inventarios = (inv.data || []).filter(i => (i.cantidad || 0) > 0 && (i.estado || '').toUpperCase() === 'ACTIVO')
     },
     async cargarHistorial () {
       this.loadingHistorial = true
@@ -660,6 +747,15 @@ export default {
     },
     volverVentas () {
       this.$router.push(`/ventas/${this.tipoVenta}`)
+    },
+    async verVenta (row) {
+      try {
+        const res = await this.$axios.get(`ventas/${row.id}`)
+        this.ventaSel = res.data
+        this.dialogDetalle = true
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar detalle')
+      }
     },
     agregarProducto (p) {
       const idx = this.carrito.findIndex(i => i.producto_id === p.id)
@@ -778,13 +874,21 @@ export default {
       }
     },
     async continuarSinGarantia () {
+      const ventaId = this.ventaCreada?.id
       this.dialogGarantiaAsk = false
-      await this.imprimirVentaCompleta(this.ventaCreada?.id)
+      this.carrito = []
+      await this.imprimirVentaCompleta(ventaId)
       this.resetVentaNueva()
     },
-    abrirDialogGarantia () {
-      this.dialogGarantiaAsk = false
+    async abrirDialogGarantia () {
       this.garantia = { inventario_id: null, cantidad: 1, tipo: 'prestamo', efectivo: 0, efectivo_manual: false, metodo_pago: 'efectivo', fisico: '', observacion: '' }
+      try {
+        await this.cargarInventarios()
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo actualizar inventario')
+        return
+      }
+      this.dialogGarantiaAsk = false
       this.dialogGarantia = true
     },
     aplicarPrecioSugerido () {
@@ -833,6 +937,30 @@ export default {
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo imprimir la ficha de despacho')
       }
+    },
+    async getVenta (id) {
+      const res = await this.$axios.get(`ventas/${id}`)
+      return res.data
+    },
+    async imprimirVenta (row) {
+      try {
+        const venta = await this.getVenta(row.id)
+        Imprimir.fichaDespacho(venta)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo imprimir')
+      }
+    },
+    anularVenta (row) {
+      this.$alert.dialog('Desea anular la venta?')
+        .onOk(async () => {
+          try {
+            await this.$axios.post(`ventas/${row.id}/anular`)
+            this.$alert.success('Venta anulada')
+            this.cargarHistorial()
+          } catch (e) {
+            this.$alert.error(e.response?.data?.message || 'No se pudo anular la venta')
+          }
+        })
     },
     imprimirImpuestos (row) {
       const env = useCounterStore().env || {}
@@ -889,6 +1017,13 @@ export default {
 .venta-date-input {
   width: 170px;
   min-width: 160px;
+}
+:deep(.historial-row-anulada) {
+  background: #ffebee;
+  color: #b71c1c;
+}
+:deep(.historial-row-anulada td) {
+  border-color: #ffcdd2;
 }
 .color-dot {
   width: 12px;
