@@ -201,12 +201,15 @@
           <div class="text-caption text-grey-7">Ventas realizadas entre fechas para esta misma pantalla</div>
         </div>
         <div class="col-12 col-md-2">
-          <q-input v-model="historial.date_from" dense outlined type="date" label="Desde" />
+          <q-toggle v-model="historial.one_day" dense label="Solo un dia" @update:model-value="syncHistorialUnDia" />
         </div>
         <div class="col-12 col-md-2">
-          <q-input v-model="historial.date_to" dense outlined type="date" label="Hasta" />
+          <q-input v-model="historial.date_from" dense outlined type="date" :label="historial.one_day ? 'Fecha' : 'Desde'" @update:model-value="syncHistorialUnDia" />
         </div>
-        <div class="col-12 col-md-4 text-right">
+        <div class="col-12 col-md-2">
+          <q-input v-model="historial.date_to" dense outlined type="date" label="Hasta" :disable="historial.one_day" />
+        </div>
+        <div class="col-12 col-md-2 text-right">
           <q-btn color="primary" no-caps icon="refresh" label="Actualizar historial" :loading="loadingHistorial" @click="cargarHistorial" />
         </div>
       </q-card-section>
@@ -638,7 +641,8 @@ export default {
       hojaRutaRow: null,
       historial: {
         date_from: new Date().toISOString().slice(0, 10),
-        date_to: new Date().toISOString().slice(0, 10)
+        date_to: new Date().toISOString().slice(0, 10),
+        one_day: true
       },
       historialRows: [],
       form: {
@@ -782,6 +786,7 @@ export default {
       this.inventarios = (inv.data || []).filter(i => (i.cantidad || 0) > 0 && (i.estado || '').toUpperCase() === 'ACTIVO')
     },
     async cargarHistorial () {
+      this.syncHistorialUnDia()
       this.loadingHistorial = true
       try {
         const res = await this.$axios.get('ventas', {
@@ -796,6 +801,11 @@ export default {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar historial de ventas')
       } finally {
         this.loadingHistorial = false
+      }
+    },
+    syncHistorialUnDia () {
+      if (this.historial.one_day) {
+        this.historial.date_to = this.historial.date_from
       }
     },
     filtrarClientes (val, update) {

@@ -60,6 +60,11 @@ class Prestamo extends Model
         return $this->belongsTo(Venta::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function retornos()
     {
         return $this->hasMany(PrestamoRetorno::class);

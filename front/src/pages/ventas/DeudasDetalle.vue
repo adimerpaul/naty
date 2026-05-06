@@ -13,8 +13,9 @@
     </q-card>
 
     <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-md-2"><q-input v-model="filters.date_from" type="date" dense outlined label="Desde" /></div>
-      <div class="col-12 col-md-2"><q-input v-model="filters.date_to" type="date" dense outlined label="Hasta" /></div>
+      <div class="col-12 col-md-2"><q-toggle v-model="filters.one_day" dense label="Solo un dia" @update:model-value="syncDeudaUnDia" /></div>
+      <div class="col-12 col-md-2"><q-input v-model="filters.date_from" type="date" dense outlined :label="filters.one_day ? 'Fecha' : 'Desde'" @update:model-value="syncDeudaUnDia" /></div>
+      <div class="col-12 col-md-2"><q-input v-model="filters.date_to" type="date" dense outlined label="Hasta" :disable="filters.one_day" /></div>
       <div class="col-12 col-md-3"><q-input v-model="filters.search" dense outlined label="Buscar cliente / telefono / venta" @keyup.enter="cargar" /></div>
       <div class="col-12 col-md-2">
         <q-select
@@ -176,7 +177,7 @@ export default {
       rowSel: null,
       amortForm: { id: null, cliente: '', monto: null, metodo: 'efectivo', observacion: '' },
       pagination: { page: 1, rowsPerPage: 25, sortBy: 'saldo_pendiente', descending: true },
-      filters: { date_from: today, date_to: today, search: '', sort_deuda: 'desc' },
+      filters: { date_from: today, date_to: today, one_day: true, search: '', sort_deuda: 'desc' },
       columns: [
         { name: 'actions', label: '', align: 'left' },
         { name: 'id', label: 'Venta', field: 'id', align: 'left' },
@@ -222,11 +223,17 @@ export default {
       return `${dd}/${mm}/${yy}`
     },
     cargar () {
+      this.syncDeudaUnDia()
       this.loading = true
       this.$axios.get('ventas/deudas', { params: { ...this.filters, tipo_venta: this.tipoVenta } })
         .then(r => { this.rows = r.data || [] })
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cargar deudas'))
         .finally(() => { this.loading = false })
+    },
+    syncDeudaUnDia () {
+      if (this.filters.one_day) {
+        this.filters.date_to = this.filters.date_from
+      }
     },
     chipColor (estado) {
       if (estado === 'PAGADO') return 'positive'

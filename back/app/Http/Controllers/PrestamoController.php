@@ -9,6 +9,7 @@ use App\Models\Prestamo;
 use App\Models\PrestamoRetorno;
 use App\Models\Venta;
 use App\Models\VentaDetalle;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -335,6 +336,77 @@ class PrestamoController extends Controller
         ]);
     }
 
+    public function reportePdf(Request $request)
+    {
+        ini_set('memory_limit', '512M');
+        set_time_limit(120);
+
+        $validated = $request->validate([
+            'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
+            'tipo' => ['nullable', Rule::in(['prestamo', 'venta'])],
+            'estado' => ['nullable', Rule::in(['VENDIDO', 'EN PRESTAMO', 'PARCIAL', 'RETORNADO', 'ANULADO', 'BAJA'])],
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        $tipoVenta = $validated['tipo_venta'] ?? 'detalle';
+        $query = Prestamo::with(['cliente', 'inventario', 'venta', 'retornos.user', 'user'])
+            ->whereHas('cliente', fn ($q) => $q->where('tipo_cliente', $tipoVenta))
+            ->orderByDesc('fecha')
+            ->orderByDesc('id');
+
+        if (! empty($validated['tipo'])) {
+            $query->where('tipo', $validated['tipo']);
+        }
+
+        if (! empty($validated['estado'])) {
+            $query->where('estado', $validated['estado']);
+        }
+
+        if (! empty($validated['date_from'])) {
+            $query->whereDate('fecha', '>=', $validated['date_from']);
+        }
+
+        if (! empty($validated['date_to'])) {
+            $query->whereDate('fecha', '<=', $validated['date_to']);
+        }
+
+        $prestamos = $query->get()->map(fn (Prestamo $prestamo) => $this->withResumen($prestamo));
+        $resumen = $this->reporteResumen($prestamos);
+        $porMaterial = $this->reportePorMaterial($prestamos);
+        $porCliente = $this->reportePorCliente($prestamos);
+
+        $logoPath = public_path('images/logo.png');
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
+
+        $pdf = Pdf::loadView('pdf.prestamos_reporte', [
+            'prestamos' => $prestamos,
+            'ventasMaterial' => $prestamos->where('tipo', 'venta')->values(),
+            'prestamosMaterial' => $prestamos->where('tipo', 'prestamo')->values(),
+            'porMaterial' => $porMaterial,
+            'porCliente' => $porCliente,
+            'resumen' => $resumen,
+            'tipoVenta' => $tipoVenta,
+            'tipoFiltro' => $validated['tipo'] ?? null,
+            'estadoFiltro' => $validated['estado'] ?? null,
+            'dateFrom' => $validated['date_from'] ?? null,
+            'dateTo' => $validated['date_to'] ?? null,
+            'usuario' => auth()->user()?->name ?? 'Sistema',
+            'logo' => $logoBase64,
+        ])
+        ->setPaper('a4', 'landscape')
+        ->setOptions([
+            'dpi' => 96,
+            'isRemoteEnabled' => false,
+            'isHtml5ParserEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+        ]);
+
+        return $pdf->download('reporte-prestamos-' . $tipoVenta . '.pdf');
+    }
+
     public function registrarCajaMovimiento(Request $request)
     {
         $validated = $request->validate([
@@ -494,5 +566,64 @@ class PrestamoController extends Controller
         }
 
         return round($ing - $egr, 2);
+    }
+
+    private function reporteResumen($prestamos): array
+    {
+        return [
+            'total_registros' => $prestamos->count(),
+            'total_prestamos' => $prestamos->where('tipo', 'prestamo')->count(),
+            'total_ventas' => $prestamos->where('tipo', 'venta')->count(),
+            'cantidad_total' => (int) $prestamos->sum('cantidad'),
+            'cantidad_pendiente' => (int) $prestamos->sum('cantidad_actual'),
+            'monto_total' => round((float) $prestamos->sum('fisico_recibido'), 2),
+            'monto_retornado' => round((float) $prestamos->sum('retornado_efectivo'), 2),
+            'monto_pendiente' => round((float) $prestamos->sum('monto_pendiente'), 2),
+            'vendido_monto' => round((float) $prestamos->where('tipo', 'venta')->sum('fisico_recibido'), 2),
+            'prestado_monto' => round((float) $prestamos->where('tipo', 'prestamo')->sum('fisico_recibido'), 2),
+            'en_prestamo' => $prestamos->whereIn('estado', ['EN PRESTAMO', 'PARCIAL'])->count(),
+            'retornados' => $prestamos->where('estado', 'RETORNADO')->count(),
+            'anulados' => $prestamos->where('estado', 'ANULADO')->count(),
+            'bajas' => $prestamos->where('estado', 'BAJA')->count(),
+            'caja_total' => $this->saldoCajaPrestamos(),
+        ];
+    }
+
+    private function reportePorMaterial($prestamos)
+    {
+        return $prestamos
+            ->groupBy(fn ($p) => $p->inventario?->nombre ?: 'Sin material')
+            ->map(function ($rows, $material) {
+                return [
+                    'material' => $material,
+                    'registros' => $rows->count(),
+                    'cantidad' => (int) $rows->sum('cantidad'),
+                    'pendiente' => (int) $rows->sum('cantidad_actual'),
+                    'ventas' => $rows->where('tipo', 'venta')->count(),
+                    'prestamos' => $rows->where('tipo', 'prestamo')->count(),
+                    'monto' => round((float) $rows->sum('fisico_recibido'), 2),
+                    'pendiente_monto' => round((float) $rows->sum('monto_pendiente'), 2),
+                ];
+            })
+            ->sortBy('material')
+            ->values();
+    }
+
+    private function reportePorCliente($prestamos)
+    {
+        return $prestamos
+            ->groupBy(fn ($p) => $p->cliente?->nombre ?: 'Sin cliente')
+            ->map(function ($rows, $cliente) {
+                return [
+                    'cliente' => $cliente,
+                    'registros' => $rows->count(),
+                    'cantidad' => (int) $rows->sum('cantidad'),
+                    'pendiente' => (int) $rows->sum('cantidad_actual'),
+                    'monto' => round((float) $rows->sum('fisico_recibido'), 2),
+                    'pendiente_monto' => round((float) $rows->sum('monto_pendiente'), 2),
+                ];
+            })
+            ->sortByDesc('pendiente_monto')
+            ->values();
     }
 }

@@ -8,6 +8,22 @@
         </div>
         <q-space />
         <q-btn color="positive" no-caps icon="add" label="Registrar" @click="nuevoPrestamo" class="q-mr-sm" />
+        <q-btn-dropdown color="deep-orange" no-caps icon="picture_as_pdf" label="Reportes" :loading="loadingPdf" class="q-mr-sm">
+          <q-list dense>
+            <q-item clickable v-close-popup @click="abrirReporte('todos')">
+              <q-item-section avatar><q-icon name="summarize" color="deep-orange" /></q-item-section>
+              <q-item-section>Todos los reportes</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="abrirReporte('prestamo')">
+              <q-item-section avatar><q-icon name="assignment_returned" color="orange-8" /></q-item-section>
+              <q-item-section>Prestamos</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="abrirReporte('venta')">
+              <q-item-section avatar><q-icon name="sell" color="primary" /></q-item-section>
+              <q-item-section>Vendidos</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
         <q-btn color="primary" flat no-caps icon="refresh" label="Actualizar" :loading="loading" @click="cargarAll" />
       </q-card-section>
     </q-card>
@@ -117,7 +133,7 @@
     </q-card>
 
     <q-dialog v-model="dialogPrestamo">
-      <q-card style="width: 680px; max-width: 96vw;">
+      <q-card style="width: 980px; max-width: 98vw;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Registrar {{ tituloCorto }}</div>
           <q-space />
@@ -139,21 +155,7 @@
               class="q-mb-sm"
               @filter="filtrarClientes"
             />
-            <q-select
-              v-model="pres.inventario_id"
-              dense
-              outlined
-              emit-value
-              map-options
-              :options="inventariosOptions"
-              label="Inventario"
-              :rules="[req]"
-              class="q-mb-sm"
-            />
             <div class="row q-col-gutter-sm">
-              <div class="col-12 col-md-4">
-                <q-input v-model.number="pres.cantidad" dense outlined type="number" min="1" label="Cantidad" :rules="[req]" />
-              </div>
               <div class="col-12 col-md-4">
                 <q-select
                   v-model="pres.tipo"
@@ -169,10 +171,24 @@
                 />
               </div>
               <div class="col-12 col-md-4">
-                <q-input :model-value="selectedInventario ? selectedInventario.cantidad : 0" dense outlined readonly label="Disponible" />
+                <q-input v-model.number="pres.cantidad" dense outlined type="number" min="1" label="Cantidad" />
               </div>
               <div class="col-12 col-md-4">
                 <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />
+              </div>
+              <div class="col-12 col-md-8">
+                <q-select
+                  v-model="pres.inventario_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  :options="inventariosOptions"
+                  label="Inventario"
+                />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-input :model-value="selectedInventario ? selectedInventario.cantidad : 0" dense outlined readonly label="Disponible" />
               </div>
               <div class="col-12 col-md-4">
                 <q-input
@@ -204,13 +220,51 @@
                   label="Metodo"
                 />
               </div>
-              <div class="col-12">
+              <div class="col-12 col-md-8">
                 <q-input v-model="pres.observacion" dense outlined label="Fisico recibido" />
+              </div>
+              <div class="col-12 col-md-4 flex items-end">
+                <q-btn
+                  color="primary"
+                  no-caps
+                  icon="add"
+                  label="Agregar a tabla"
+                  class="full-width"
+                  @click="agregarPrestamoItem"
+                />
+              </div>
+              <div class="col-12 q-mt-sm">
+                <q-table
+                  dense
+                  flat
+                  bordered
+                  :rows="prestamoItems"
+                  :columns="colsPrestamoItems"
+                  row-key="uid"
+                  hide-pagination
+                  :rows-per-page-options="[0]"
+                >
+                  <template #body-cell-tipo="props">
+                    <q-td :props="props">
+                      <q-chip dense :color="props.row.tipo === 'venta' ? 'primary' : 'warning'" text-color="white">
+                        {{ props.row.tipo === 'venta' ? 'Venta' : 'Prestamo' }}
+                      </q-chip>
+                    </q-td>
+                  </template>
+                  <template #body-cell-efectivo="props">
+                    <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+                  </template>
+                  <template #body-cell-actions="props">
+                    <q-td :props="props">
+                      <q-btn dense flat round color="negative" icon="delete" @click="quitarPrestamoItem(props.row.uid)" />
+                    </q-td>
+                  </template>
+                </q-table>
               </div>
             </div>
             <div class="row justify-end q-gutter-sm q-mt-md">
               <q-btn flat color="negative" no-caps label="Cancelar" v-close-popup />
-              <q-btn color="primary" no-caps label="Guardar" type="submit" :loading="loadingGuardar" />
+              <q-btn color="primary" no-caps label="Guardar todo" type="submit" :loading="loadingGuardar" />
             </div>
           </q-form>
         </q-card-section>
@@ -308,6 +362,56 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="dialogReporte">
+      <q-card style="width: 620px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Reporte de prestamos</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div class="row q-col-gutter-sm">
+            <div class="col-12 col-md-6">
+              <q-select
+                v-model="reporte.tipo"
+                dense
+                outlined
+                emit-value
+                map-options
+                :options="reporteTipoOptions"
+                label="Reporte"
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <q-select
+                v-model="reporte.estado"
+                dense
+                outlined
+                emit-value
+                map-options
+                clearable
+                :options="reporteEstadoOptions"
+                label="Estado"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <q-toggle v-model="reporte.unDia" dense label="Solo un dia" @update:model-value="syncReporteUnDia" />
+            </div>
+            <div class="col-12 col-md-4">
+              <q-input v-model="reporte.date_from" dense outlined type="date" :label="reporte.unDia ? 'Fecha' : 'Desde'" @update:model-value="syncReporteUnDia" />
+            </div>
+            <div class="col-12 col-md-4">
+              <q-input v-model="reporte.date_to" dense outlined type="date" label="Hasta" :disable="reporte.unDia" />
+            </div>
+          </div>
+          <div class="row justify-end q-gutter-sm q-mt-md">
+            <q-btn flat color="negative" no-caps label="Cancelar" v-close-popup />
+            <q-btn color="deep-orange" no-caps icon="picture_as_pdf" label="Generar PDF" :loading="loadingPdf" @click="exportReportePdf" />
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -319,16 +423,19 @@ export default {
       loading: false,
       loadingGuardar: false,
       loadingRetorno: false,
+      loadingPdf: false,
       filter: '',
       prestamos: [],
       clientes: [],
       clientesFiltrados: [],
       inventarios: [],
+      prestamoItems: [],
       dialogPrestamo: false,
       dialogRetorno: false,
       dialogHistorial: false,
       dialogCajaMov: false,
       dialogCajaHistorial: false,
+      dialogReporte: false,
       retornoRow: null,
       loadingCajaMov: false,
       loadingCajaHistorial: false,
@@ -348,6 +455,13 @@ export default {
         date_to: new Date().toISOString().slice(0, 10)
       },
       cajaMovimientos: [],
+      reporte: {
+        tipo: null,
+        estado: null,
+        unDia: true,
+        date_from: new Date().toISOString().slice(0, 10),
+        date_to: new Date().toISOString().slice(0, 10)
+      },
       retorno: {
         cantidad: 0,
         efectivo: 0,
@@ -381,6 +495,14 @@ export default {
         { name: 'monto_pendiente', label: 'Monto pendiente', field: 'monto_pendiente', align: 'right' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
       ],
+      colsPrestamoItems: [
+        { name: 'actions', label: '', align: 'left' },
+        { name: 'inventario_nombre', label: 'Inventario', field: 'inventario_nombre', align: 'left' },
+        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
+        { name: 'efectivo', label: 'Monto recibido', field: 'efectivo', align: 'right' },
+        { name: 'observacion', label: 'Fisico recibido', field: 'observacion', align: 'left' }
+      ],
       colsRetornos: [
         { name: 'fecha', label: 'Fecha', field: 'fecha', align: 'left' },
         { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
@@ -395,6 +517,19 @@ export default {
         { name: 'monto', label: 'Monto', field: 'monto', align: 'right' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' },
         { name: 'usuario', label: 'Usuario', field: 'usuario', align: 'left' }
+      ],
+      reporteTipoOptions: [
+        { label: 'Todos', value: null },
+        { label: 'Prestamos', value: 'prestamo' },
+        { label: 'Vendidos', value: 'venta' }
+      ],
+      reporteEstadoOptions: [
+        { label: 'Vendido', value: 'VENDIDO' },
+        { label: 'En prestamo', value: 'EN PRESTAMO' },
+        { label: 'Parcial', value: 'PARCIAL' },
+        { label: 'Retornado', value: 'RETORNADO' },
+        { label: 'Anulado', value: 'ANULADO' },
+        { label: 'Baja', value: 'BAJA' }
       ]
     }
   },
@@ -493,6 +628,52 @@ export default {
       const r = await this.$axios.get('prestamos/caja/resumen', { params: { tipo_venta: this.tipoCliente } })
       this.cajaResumen = r.data || this.cajaResumen
     },
+    abrirReporte (tipo) {
+      const today = new Date().toISOString().slice(0, 10)
+      this.reporte = {
+        tipo: tipo === 'todos' ? null : tipo,
+        estado: null,
+        unDia: true,
+        date_from: today,
+        date_to: today
+      }
+      this.dialogReporte = true
+    },
+    syncReporteUnDia () {
+      if (this.reporte.unDia) {
+        this.reporte.date_to = this.reporte.date_from
+      }
+    },
+    async exportReportePdf () {
+      this.syncReporteUnDia()
+      this.loadingPdf = true
+      try {
+        const res = await this.$axios.get('prestamos/reporte/pdf', {
+          params: {
+            tipo_venta: this.tipoCliente,
+            tipo: this.reporte.tipo,
+            estado: this.reporte.estado,
+            date_from: this.reporte.date_from,
+            date_to: this.reporte.date_to
+          },
+          responseType: 'blob',
+          timeout: 120000
+        })
+        const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `reporte-prestamos-${this.tipoCliente}-${this.reporte.date_from}-${this.reporte.date_to}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.URL.revokeObjectURL(url)
+        this.dialogReporte = false
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo generar reporte PDF')
+      } finally {
+        this.loadingPdf = false
+      }
+    },
     abrirCajaMovimiento (tipo) {
       this.cajaForm = { tipo_movimiento: tipo, monto: null, observacion: '' }
       this.dialogCajaMov = true
@@ -544,6 +725,7 @@ export default {
     },
     nuevoPrestamo () {
       this.pres = this.defaultPres()
+      this.prestamoItems = []
       this.dialogPrestamo = true
     },
     aplicarPrecioSugerido () {
@@ -556,16 +738,79 @@ export default {
       if (this.pres.efectivo_manual) return
       this.aplicarPrecioSugerido()
     },
+    agregarPrestamoItem () {
+      if (!this.pres.cliente_id) {
+        this.$alert.error('Debe seleccionar cliente')
+        return
+      }
+      if (!this.pres.inventario_id) {
+        this.$alert.error('Debe seleccionar inventario')
+        return
+      }
+      if (Number(this.pres.cantidad || 0) < 1) {
+        this.$alert.error('Debe registrar cantidad valida')
+        return
+      }
+
+      const disponible = Number(this.selectedInventario?.cantidad || 0)
+      const usados = this.prestamoItems
+        .filter(i => i.inventario_id === this.pres.inventario_id)
+        .reduce((acc, it) => acc + Number(it.cantidad || 0), 0)
+
+      if (Number(this.pres.cantidad || 0) + usados > disponible) {
+        this.$alert.error('La cantidad supera el inventario disponible')
+        return
+      }
+      if (this.pres.tipo === 'venta' && Number(this.pres.efectivo || 0) <= 0) {
+        this.$alert.error('Debe registrar monto efectivo para venta de material')
+        return
+      }
+
+      this.prestamoItems.push({
+        uid: `${Date.now()}-${Math.round(Math.random() * 100000)}`,
+        cliente_id: this.pres.cliente_id,
+        inventario_id: this.pres.inventario_id,
+        inventario_nombre: this.selectedInventario?.nombre || '-',
+        cantidad: Number(this.pres.cantidad || 0),
+        tipo: this.pres.tipo,
+        efectivo: Number(this.pres.efectivo || 0),
+        metodo_pago: this.pres.metodo_pago || 'efectivo',
+        observacion: this.pres.observacion || ''
+      })
+
+      const clienteId = this.pres.cliente_id
+      this.pres = {
+        ...this.defaultPres(),
+        cliente_id: clienteId
+      }
+    },
+    quitarPrestamoItem (uid) {
+      this.prestamoItems = this.prestamoItems.filter(i => i.uid !== uid)
+    },
     async guardarPrestamo () {
+      if (!this.prestamoItems.length) {
+        this.$alert.error('Debe agregar al menos un material a la tabla')
+        return
+      }
       this.loadingGuardar = true
       try {
-        await this.$axios.post('prestamos', {
-          ...this.pres,
-          tipo_venta: this.tipoCliente
-        })
+        for (const item of this.prestamoItems) {
+          await this.$axios.post('prestamos', {
+            cliente_id: item.cliente_id,
+            inventario_id: item.inventario_id,
+            cantidad: item.cantidad,
+            tipo: item.tipo,
+            efectivo: item.efectivo,
+            metodo_pago: item.metodo_pago,
+            fisico: '',
+            observacion: item.observacion,
+            tipo_venta: this.tipoCliente
+          })
+        }
         this.dialogPrestamo = false
+        this.prestamoItems = []
         await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
-        this.$alert.success('Registro guardado')
+        this.$alert.success('Registros guardados')
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo guardar')
       } finally {

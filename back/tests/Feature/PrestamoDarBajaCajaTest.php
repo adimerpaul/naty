@@ -106,3 +106,40 @@ it('registra venta de material de prestamos directamente en caja prestamos', fun
     expect((float) $resumen['vendidos_monto'])->toBe(40.0)
         ->and((float) $resumen['caja_total'])->toBe(40.0);
 });
+
+it('genera reporte pdf de prestamos y venta de material', function () {
+    $user = User::factory()->create();
+    Caja::updateOrCreate(
+        ['id' => 3],
+        ['nombre' => 'Caja Prestamos', 'descripcion' => 'Caja de prestamos', 'estado' => true]
+    );
+
+    $cliente = Cliente::create([
+        'nombre' => 'Cliente Reporte',
+        'titular' => 'Cliente Reporte',
+        'tipo_cliente' => 'detalle',
+        'estado' => true,
+    ]);
+    $inventario = Inventario::create([
+        'nombre' => 'Canastillo',
+        'cantidad' => 10,
+        'estado' => 'ACTIVO',
+        'precio' => 15,
+    ]);
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/prestamos', [
+            'tipo' => 'prestamo',
+            'cliente_id' => $cliente->id,
+            'inventario_id' => $inventario->id,
+            'cantidad' => 2,
+            'efectivo' => 30,
+            'tipo_venta' => 'detalle',
+        ])
+        ->assertCreated();
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/prestamos/reporte/pdf?tipo_venta=detalle')
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
