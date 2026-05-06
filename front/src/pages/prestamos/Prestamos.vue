@@ -103,6 +103,10 @@
                   <q-item-section avatar><q-icon name="history" color="indigo" /></q-item-section>
                   <q-item-section>Historial retornos</q-item-section>
                 </q-item>
+                <q-item clickable v-close-popup @click="imprimirPrestamo(props.row)">
+                  <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
+                  <q-item-section>Imprimir</q-item-section>
+                </q-item>
                 <q-item clickable v-close-popup :disable="!puedeDarBaja(props.row)" @click="darBajaPrestamo(props.row)">
                   <q-item-section avatar><q-icon name="money_off" color="negative" /></q-item-section>
                   <q-item-section>Dar de baja</q-item-section>
@@ -309,6 +313,7 @@
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Historial de retornos #{{ retornoRow?.id }}</div>
           <q-space />
+          <q-btn v-if="retornoRow" flat dense no-caps icon="print" color="primary" label="Imprimir" class="q-mr-sm" @click="imprimirHistorial(retornoRow)" />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section>
@@ -407,15 +412,19 @@
           </div>
           <div class="row justify-end q-gutter-sm q-mt-md">
             <q-btn flat color="negative" no-caps label="Cancelar" v-close-popup />
+            <q-btn color="primary" no-caps icon="print" label="Imprimir ticket" :loading="loadingPdf" @click="imprimirReporteTicket" />
             <q-btn color="deep-orange" no-caps icon="picture_as_pdf" label="Generar PDF" :loading="loadingPdf" @click="exportReportePdf" />
           </div>
         </q-card-section>
       </q-card>
     </q-dialog>
+    <div id="myElement" class="hidden"></div>
   </q-page>
 </template>
 
 <script>
+import { Imprimir } from 'src/addons/Imprimir'
+
 export default {
   name: 'PrestamosPage',
   data () {
@@ -643,6 +652,35 @@ export default {
       if (this.reporte.unDia) {
         this.reporte.date_to = this.reporte.date_from
       }
+    },
+    reporteRowsFiltradas () {
+      this.syncReporteUnDia()
+      const desde = this.reporte.date_from || ''
+      const hasta = this.reporte.date_to || desde
+      return (this.prestamos || []).filter(row => {
+        const fecha = String(row.fecha || '').slice(0, 10)
+        const okTipo = this.reporte.tipo ? row.tipo === this.reporte.tipo : true
+        const okEstado = this.reporte.estado ? row.estado === this.reporte.estado : true
+        const okDesde = desde ? fecha >= desde : true
+        const okHasta = hasta ? fecha <= hasta : true
+        return okTipo && okEstado && okDesde && okHasta
+      })
+    },
+    reporteFiltroLabel () {
+      const tipo = this.reporte.tipo === 'venta'
+        ? 'Vendidos'
+        : (this.reporte.tipo === 'prestamo' ? 'Prestamos' : 'Todos')
+      return `${tipo}${this.reporte.estado ? ' - ' + this.reporte.estado : ''}`
+    },
+    imprimirReporteTicket () {
+      Imprimir.reportePrestamosTicket(this.reporteRowsFiltradas(), {
+        titulo: 'Reporte Prestamos',
+        tipoVenta: this.tipoCliente,
+        dateFrom: this.reporte.date_from,
+        dateTo: this.reporte.date_to,
+        filtro: this.reporteFiltroLabel()
+      })
+      this.dialogReporte = false
     },
     async exportReportePdf () {
       this.syncReporteUnDia()
@@ -872,6 +910,12 @@ export default {
             this.$alert.error(e.response?.data?.message || 'No se pudo dar de baja')
           }
         })
+    },
+    imprimirPrestamo (row) {
+      Imprimir.prestamoMaterialTicket(row)
+    },
+    imprimirHistorial (row) {
+      Imprimir.prestamoHistorialTicket(row)
     }
   }
 }

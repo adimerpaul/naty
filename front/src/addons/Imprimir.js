@@ -1221,6 +1221,127 @@ Oruro</div>
     this.printTicketHtml(html);
   }
 
+  static prestamoMaterialTicket(row) {
+    const S = v => (v ?? '').toString();
+    const money = n => Number(n || 0).toFixed(2);
+    const formatDate = value => {
+      if (!value) return '-';
+      const parts = S(value).split('T')[0].split('-');
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : S(value);
+    };
+    const tipo = row.tipo === 'venta' ? 'Venta Material' : 'Prestamo Material';
+    const html = `
+      <div style="width:300px;font-family:'Times New Roman',serif;font-size:14px;line-height:1.2;color:#111;">
+        <div style="text-align:center;font-size:18px;font-weight:bold;">${tipo}</div>
+        <div style="text-align:center;">Nro: ${row.id || ''}</div>
+        <hr style="border:0;border-top:1px dashed #222;margin:8px 0;">
+        <div><b>Fecha:</b> ${formatDate(row.fecha)}</div>
+        <div><b>Cliente:</b> ${S(row.cliente?.nombre || '-')}</div>
+        <div><b>Material:</b> ${S(row.inventario?.nombre || '-')}</div>
+        <div><b>Estado:</b> ${S(row.estado || '-')}</div>
+        <div><b>Cantidad:</b> ${Number(row.cantidad || 0)}</div>
+        <div><b>Pendiente:</b> ${Number(row.cantidad_actual || 0)}</div>
+        <div><b>Monto recibido:</b> ${money(row.fisico_recibido || row.efectivo || 0)} Bs</div>
+        <div><b>Monto pendiente:</b> ${money(row.monto_pendiente ?? row.efectivo_actual ?? 0)} Bs</div>
+        <div><b>Observacion:</b> ${S(row.observacion || '')}</div>
+        <br><br><br>
+        <div style="text-align:center;font-weight:bold;">FIRMA</div>
+        ${row.tipo !== 'venta' ? '<div style="margin-top:10px;font-size:16px;font-weight:bold;">* Acepto todas las condiciones y terminos de prestamo de envases</div>' : ''}
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
+  static prestamoHistorialTicket(row) {
+    const S = v => (v ?? '').toString();
+    const money = n => Number(n || 0).toFixed(2);
+    const formatDate = value => {
+      if (!value) return '-';
+      const parts = S(value).split('T')[0].split('-');
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : S(value);
+    };
+    const rows = (row.retornos || []).map(r => `
+      <tr>
+        <td>${formatDate(r.fecha)}</td>
+        <td style="text-align:right;">${Number(r.cantidad || 0)}</td>
+        <td style="text-align:right;">${money(r.efectivo)}</td>
+      </tr>
+      ${r.observacion ? `<tr><td colspan="3" style="font-size:12px;">${S(r.observacion)}</td></tr>` : ''}
+    `).join('');
+    const html = `
+      <div style="width:300px;font-family:'Times New Roman',serif;font-size:14px;line-height:1.2;color:#111;">
+        <div style="text-align:center;font-size:18px;font-weight:bold;">Historial Retornos</div>
+        <div style="text-align:center;">Prestamo #${row.id || ''}</div>
+        <hr style="border:0;border-top:1px dashed #222;margin:8px 0;">
+        <div><b>Cliente:</b> ${S(row.cliente?.nombre || '-')}</div>
+        <div><b>Material:</b> ${S(row.inventario?.nombre || '-')}</div>
+        <div><b>Estado:</b> ${S(row.estado || '-')}</div>
+        <div><b>Cantidad:</b> ${Number(row.cantidad || 0)}</div>
+        <div><b>Retornado:</b> ${Number(row.retornado_cantidad || 0)}</div>
+        <div><b>Pendiente:</b> ${Number(row.cantidad_actual || 0)}</div>
+        <hr style="border:0;border-top:1px dashed #222;margin:8px 0;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr><th style="text-align:left;">Fecha</th><th style="text-align:right;">Cant</th><th style="text-align:right;">Monto</th></tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="3">Sin retornos</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
+  static reportePrestamosTicket(rows = [], options = {}) {
+    const S = v => (v ?? '').toString();
+    const money = n => Number(n || 0).toFixed(2);
+    const formatDate = value => {
+      if (!value) return '-';
+      const parts = S(value).split('T')[0].split('-');
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : S(value);
+    };
+    const periodo = options.dateFrom === options.dateTo
+      ? formatDate(options.dateFrom)
+      : `${formatDate(options.dateFrom)} - ${formatDate(options.dateTo)}`;
+    const totalCantidad = rows.reduce((acc, row) => acc + Number(row.cantidad || 0), 0);
+    const totalPendienteCantidad = rows.reduce((acc, row) => acc + Number(row.cantidad_actual || 0), 0);
+    const totalMonto = rows.reduce((acc, row) => acc + Number(row.fisico_recibido || row.efectivo || 0), 0);
+    const totalPendiente = rows.reduce((acc, row) => acc + Number(row.monto_pendiente ?? row.efectivo_actual ?? 0), 0);
+    const detalle = rows.map(row => `
+      <tr>
+        <td style="width:26px;">${row.id || ''}</td>
+        <td>
+          <div style="font-weight:bold;">${S(row.cliente?.nombre || '-')}</div>
+          <div>${S(row.inventario?.nombre || '-')}</div>
+          <div>${formatDate(row.fecha)} ${S(row.estado || '')}</div>
+        </td>
+        <td style="text-align:right;width:40px;">${Number(row.cantidad || 0)}</td>
+        <td style="text-align:right;width:54px;">${money(row.fisico_recibido || row.efectivo || 0)}</td>
+      </tr>
+    `).join('');
+    const html = `
+      <div style="width:300px;font-family:'Times New Roman',serif;font-size:13px;line-height:1.15;color:#111;">
+        <div style="text-align:center;font-size:18px;font-weight:bold;">${options.titulo || 'Reporte Prestamos'}</div>
+        <div><b>Tipo:</b> ${S(options.tipoVenta || '').toUpperCase() || 'TODOS'}</div>
+        <div><b>Periodo:</b> ${periodo}</div>
+        <div><b>Filtro:</b> ${S(options.filtro || 'Todos')}</div>
+        <div><b>Registros:</b> ${rows.length}</div>
+        <hr style="border:0;border-top:1px dashed #222;margin:7px 0;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr><th>ID</th><th>CLIENTE / MATERIAL</th><th style="text-align:right;">CANT</th><th style="text-align:right;">MONTO</th></tr>
+          </thead>
+          <tbody>${detalle || '<tr><td colspan="4">Sin registros</td></tr>'}</tbody>
+        </table>
+        <hr style="border:0;border-top:1px dashed #222;margin:7px 0;">
+        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>Cantidad</span><span>${totalCantidad}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>Cant. pendiente</span><span>${totalPendienteCantidad}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>Monto</span><span>${money(totalMonto)} Bs</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>Pendiente</span><span>${money(totalPendiente)} Bs</span></div>
+      </div>
+    `;
+    this.printTicketHtml(html);
+  }
+
   static movimientoCaja(movimiento, cajaNombre = 'Caja') {
     const fecha = new Date(movimiento.created_at || Date.now());
     const dd = String(fecha.getDate()).padStart(2, '0');
