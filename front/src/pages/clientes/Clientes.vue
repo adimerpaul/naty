@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row items-center">
+      <q-card-section class="row items-center tipo-banner" :class="tipoThemeClass">
         <div>
           <div class="text-h6 text-title">{{ tituloPagina }}</div>
           <div class="text-caption text-grey-7">
@@ -473,6 +473,9 @@ export default {
     tituloPagina () {
       return this.tipoCliente === 'local' ? 'Cliente local' : 'Cliente detalle'
     },
+    tipoThemeClass () {
+      return this.tipoCliente === 'local' ? 'tipo-local' : 'tipo-detalle'
+    },
     kpi () {
       const total = this.clientes.length
       const activos = this.clientes.filter(c => !!c.estado).length
@@ -695,3 +698,18 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.tipo-banner {
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.tipo-detalle {
+  background: #bbdefb;
+  border-color: #42a5f5;
+}
+.tipo-local {
+  background: #c8e6c9;
+  border-color: #66bb6a;
+}
+</style>

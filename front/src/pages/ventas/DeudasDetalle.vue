@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row items-center">
+      <q-card-section class="row items-center tipo-banner" :class="tipoThemeClass">
         <div>
           <div class="text-h6">{{ titulo }}</div>
           <div class="text-caption text-grey-7">Clientes con saldo pendiente</div>
@@ -200,6 +200,7 @@ export default {
   computed: {
     tipoVenta () { return this.$route.params.tipo === 'local' ? 'local' : 'detalle' },
     titulo () { return this.tipoVenta === 'local' ? 'Deuda local' : 'Deuda detalle' },
+    tipoThemeClass () { return this.tipoVenta === 'local' ? 'tipo-local' : 'tipo-detalle' },
     totalDeuda () { return this.rows.reduce((a, b) => a + Number(b.saldo_pendiente || 0), 0) }
   },
   watch: {
@@ -286,3 +287,18 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.tipo-banner {
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.tipo-detalle {
+  background: #bbdefb;
+  border-color: #42a5f5;
+}
+.tipo-local {
+  background: #c8e6c9;
+  border-color: #66bb6a;
+}
+</style>

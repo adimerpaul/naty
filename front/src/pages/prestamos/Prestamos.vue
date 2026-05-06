@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row items-center">
+      <q-card-section class="row items-center tipo-banner" :class="tipoThemeClass">
         <div>
           <div class="text-h6">{{ tituloPagina }}</div>
           <div class="text-caption text-grey-7">Registro de prestamos y venta de material desde inventarios</div>
@@ -290,6 +290,7 @@ export default {
     tipoCliente () { return this.$route.params.tipo === 'local' ? 'local' : 'detalle' },
     tituloPagina () { return this.tipoCliente === 'local' ? 'Prestamo local' : 'Prestamo detalle' },
     tituloCorto () { return this.tipoCliente === 'local' ? 'prestamo local' : 'prestamo detalle' },
+    tipoThemeClass () { return this.tipoCliente === 'local' ? 'tipo-local' : 'tipo-detalle' },
     inventariosOptions () {
       return this.inventarios
         .filter(i => Number(i.cantidad || 0) > 0 && this.isInventarioActivo(i))
@@ -459,3 +460,18 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.tipo-banner {
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.tipo-detalle {
+  background: #bbdefb;
+  border-color: #42a5f5;
+}
+.tipo-local {
+  background: #c8e6c9;
+  border-color: #66bb6a;
+}
+</style>

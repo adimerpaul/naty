@@ -3,7 +3,7 @@
     <div class="row q-col-gutter-md">
       <div class="col-12 col-lg-8">
         <q-card flat bordered>
-          <q-card-section class="row items-center q-gutter-sm">
+          <q-card-section class="row items-center q-gutter-sm tipo-banner" :class="tipoThemeClass">
             <q-btn flat dense icon="arrow_back" no-caps label="Volver a ventas" @click="volverVentas" />
             <div class="text-h6">{{ tituloPagina }}</div>
             <q-space />
@@ -659,6 +659,7 @@ export default {
   computed: {
     tipoVenta () { return this.$route.params.tipo === 'local' ? 'local' : 'detalle' },
     tituloPagina () { return this.tipoVenta === 'local' ? 'Nueva venta local' : 'Nueva venta detalle' },
+    tipoThemeClass () { return this.tipoVenta === 'local' ? 'tipo-local' : 'tipo-detalle' },
     selectedInventario () { return this.inventarios.find(i => i.id === this.garantia.inventario_id) || null },
     clienteSeleccionado () { return this.clientesBackup.find(c => c.id === this.form.cliente_id) || null },
     productosFiltrados () {
@@ -1048,6 +1049,18 @@ export default {
 </script>
 
 <style scoped>
+.tipo-banner {
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.tipo-detalle {
+  background: #bbdefb;
+  border-color: #42a5f5;
+}
+.tipo-local {
+  background: #c8e6c9;
+  border-color: #66bb6a;
+}
 .product-card {
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }

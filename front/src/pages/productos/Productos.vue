@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row items-center">
+      <q-card-section class="row items-center tipo-banner" :class="tipoThemeClass">
         <div>
           <div class="text-h6 text-title">{{ tituloPagina }}</div>
           <div class="text-caption text-grey-7">
@@ -323,6 +323,9 @@ export default {
     tituloPagina () {
       return this.tipoProducto === 'local' ? 'Producto local' : 'Producto detalle'
     },
+    tipoThemeClass () {
+      return this.tipoProducto === 'local' ? 'tipo-local' : 'tipo-detalle'
+    },
     kpi () {
       const total = this.productos.length
       const activos = this.productos.filter(p => !!p.estado).length
@@ -497,6 +500,21 @@ export default {
 </script>
 
 <style scoped>
+.tipo-banner {
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.tipo-detalle {
+  background: #bbdefb;
+  border-color: #42a5f5;
+}
+.tipo-local {
+  background: #c8e6c9;
+  border-color: #66bb6a;
+}
+</style>
+
+<style scoped>
 .color-box {
   width: 18px;
   height: 18px;
@@ -568,4 +586,3 @@ kbd {
   font-size: 11px;
 }
 </style>
-
