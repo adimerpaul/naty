@@ -14,9 +14,14 @@ use Illuminate\Validation\ValidationException;
 
 class CajaController extends Controller
 {
+    private const CAJA_PRESTAMOS_ID = 3;
+
     public function index()
     {
-        return Caja::where('estado', true)->orderBy('id')->get();
+        return Caja::where('estado', true)
+            ->where('id', '!=', self::CAJA_PRESTAMOS_ID)
+            ->orderBy('id')
+            ->get();
     }
 
     public function resumen(Request $request)
@@ -25,7 +30,10 @@ class CajaController extends Controller
         $start = Carbon::parse($month . '-01')->startOfMonth();
         $end = Carbon::parse($month . '-01')->endOfMonth();
 
-        $cajas = Caja::where('estado', true)->orderBy('id')->get();
+        $cajas = Caja::where('estado', true)
+            ->where('id', '!=', self::CAJA_PRESTAMOS_ID)
+            ->orderBy('id')
+            ->get();
 
         $data = $cajas->map(function (Caja $caja) use ($start, $end) {
             return [
