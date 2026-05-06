@@ -20,4 +20,9 @@ class Inventario extends Model
         'estado',
         'precio',
     ];
+
+    public function movimientos()
+    {
+        return $this->hasMany(InventarioMovimiento::class);
+    }
 }

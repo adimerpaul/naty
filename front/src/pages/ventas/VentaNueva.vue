@@ -95,67 +95,58 @@
         </q-card>
 
         <q-card flat bordered class="q-mt-md">
-          <q-card-section>
+          <q-card-section class="q-pb-sm">
             <div class="text-subtitle1 text-weight-bold">Datos de la venta</div>
           </q-card-section>
           <q-separator />
-          <q-card-section>
+          <q-card-section class="q-pa-sm">
             <q-form ref="formVenta" @submit.prevent="guardarVenta">
-              <div class="row q-col-gutter-sm q-mb-sm">
-                <div class="col-12">
-                  <div class="row items-center q-col-gutter-sm">
-                    <div class="col">
-                      <q-select
-                        v-model="form.cliente_id"
-                        label="Cliente"
-                        dense outlined
-                        emit-value map-options
-                        option-label="nombre"
-                        option-value="id"
-                        :options="clientes"
-                        :rules="[req]"
-                        use-input
-                        input-debounce="250"
-                        fill-input
-                        @filter="filtrarClientes"
-                        clearable
-                      >
-                        <template #selected-item="scope">
+              <div class="row q-col-gutter-xs q-mb-xs">
+                <div class="col-12 col-sm-8">
+                  <q-select
+                    v-model="form.cliente_id"
+                    label="Cliente"
+                    dense outlined
+                    emit-value map-options
+                    option-label="nombre"
+                    option-value="id"
+                    :options="clientes"
+                    :rules="[req]"
+                    use-input
+                    input-debounce="250"
+                    fill-input
+                    @filter="filtrarClientes"
+                    clearable
+                  >
+                    <template #append>
+                      <q-btn
+                        dense
+                        flat
+                        round
+                        color="primary"
+                        icon="person_add"
+                        @click.stop="dialogClienteNuevo = true"
+                      />
+                    </template>
+                    <template #selected-item="scope">
 <!--                        <div class="ellipsis">-->
 <!--                          {{ scope.opt.nombre }} <span class="text-grey-7">CI: {{ scope.opt.ci || '-' }}</span>-->
 <!--                        </div>-->
-                        </template>
-                        <template #option="scope">
-                          <q-item v-bind="scope.itemProps">
-                            <q-item-section>
-                              <q-item-label>{{ scope.opt.nombre }}</q-item-label>
-                              <q-item-label caption>CI: {{ scope.opt.ci || '-' }}</q-item-label>
-                            </q-item-section>
-                          </q-item>
-                        </template>
-                      </q-select>
-                    </div>
-                    <div class="col-auto">
-                      <q-btn dense no-caps color="primary" icon="person_add" label="Nuevo" @click="dialogClienteNuevo = true" />
-                    </div>
-                  </div>
+                    </template>
+                    <template #option="scope">
+                      <q-item v-bind="scope.itemProps">
+                        <q-item-section>
+                          <q-item-label>{{ scope.opt.nombre }}</q-item-label>
+                          <q-item-label caption>CI: {{ scope.opt.ci || '-' }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
                 </div>
-<!--              <div class="col-12 col-md-4">-->
-<!--                <q-select-->
-<!--                  v-model="form.tipo_pago"-->
-<!--                  label="Pago"-->
-<!--                  dense outlined-->
-<!--                  emit-value map-options-->
-<!--                  :options="[-->
-<!--                    { label: 'Contado', value: 'contado' },-->
-<!--                    { label: 'Credito', value: 'credito' }-->
-<!--                  ]"-->
-<!--                />-->
-<!--              </div>-->
-                <div class="col-12 col-sm-6">
+                <div class="col-12 col-sm-4">
                   <q-select
                     v-model="form.metodo_pago"
-                    label="Metodo"
+                    label="Efectivo"
                     dense outlined
                     emit-value map-options
                     :options="[
@@ -167,15 +158,15 @@
                 <div class="col-12 col-sm-6" v-if="form.tipo_pago === 'credito'">
                   <q-input v-model.number="form.pago_inicial" type="number" min="0" :max="total" label="Pago inicial" dense outlined />
                 </div>
-                <div class="col-12">
+                <div class="col-12 col-sm-5">
                   <q-checkbox v-model="form.facturado" label="Facturado SIAT" dense />
                 </div>
-                <div class="col-12">
-                  <q-input v-model="form.observacion" dense outlined type="textarea" autogrow label="Observacion" />
+                <div class="col-12 col-sm-7">
+                  <q-input v-model="form.observacion" dense outlined label="Observacion" />
                 </div>
               </div>
 
-              <q-separator class="q-my-sm" />
+              <q-separator class="q-my-xs" />
 
               <q-markup-table dense flat bordered class="q-mt-sm">
                 <tbody>
@@ -685,6 +676,10 @@ export default {
     this.cargarTodo()
   },
   watch: {
+    '$route.params.tipo' () {
+      this.resetVentaNueva()
+      this.cargarTodo()
+    },
     'garantia.inventario_id' () {
       this.garantia.efectivo_manual = false
       this.recalcularPrecioGarantia()
@@ -1022,6 +1017,7 @@ export default {
       window.open(url, '_blank', 'noopener')
     },
     resetVentaNueva () {
+      const fechaActual = this.form?.fecha_venta || new Date().toISOString().slice(0, 10)
       this.ventaCreada = null
       this.dialogGarantiaAsk = false
       this.dialogGarantia = false
@@ -1031,7 +1027,7 @@ export default {
         cliente_id: null,
         tipo_pago: 'contado',
         metodo_pago: 'efectivo',
-        fecha_venta: new Date().toISOString().slice(0, 10),
+        fecha_venta: fechaActual,
         facturado: false,
         pago_inicial: 0,
         observacion: ''

@@ -1006,7 +1006,7 @@ Oruro</div>
           <div style="font-size:30px">${fechaTxt}</div>
         </div>
         <div><b>Nro :</b> ${venta.id}</div>
-        <div><b>Local:</b> ${venta.cliente_direccion || '-'}</div>
+        ${venta.tipo_venta === 'local' ? `<div><b>Local:</b> ${venta.cliente_direccion || '-'}</div>` : ''}
         <div><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
         <div><b>Usuario:</b> ${venta.user?.name || venta.user?.username || '-'}</div>
         <hr>
