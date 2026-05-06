@@ -236,6 +236,7 @@ class CajaController extends Controller
         $pagos = DB::table('pagos')
             ->selectRaw('venta_id, SUM(monto) as pagado')
             ->where('estado', 'PAGADO')
+            ->whereNull('deleted_at')
             ->groupBy('venta_id');
 
         return DB::table('ventas as v')

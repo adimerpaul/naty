@@ -618,6 +618,7 @@ class VentaController extends Controller
         $pagado = (float) DB::table('pagos')
             ->where('venta_id', $venta->id)
             ->where('estado', 'PAGADO')
+            ->whereNull('deleted_at')
             ->sum('monto');
 
         if ($venta->tipo_pago === 'credito') {
@@ -636,6 +637,7 @@ class VentaController extends Controller
         $pagos = DB::table('pagos')
             ->selectRaw('venta_id, SUM(monto) as pagado')
             ->where('estado', 'PAGADO')
+            ->whereNull('deleted_at')
             ->groupBy('venta_id');
 
         $row = DB::table('ventas as v')

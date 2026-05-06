@@ -273,6 +273,7 @@ class PersonalPagoController extends Controller
         $pagos = DB::table('pagos')
             ->selectRaw('venta_id, SUM(monto) as pagado')
             ->where('estado', 'PAGADO')
+            ->whereNull('deleted_at')
             ->groupBy('venta_id');
 
         $row = DB::table('ventas as v')

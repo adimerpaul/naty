@@ -12,6 +12,47 @@
       </q-card-section>
     </q-card>
 
+    <div class="row q-col-gutter-md q-mb-md">
+      <div class="col-12 col-sm-6 col-md-3">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-caption text-grey-7">Vendido material</div>
+            <div class="text-h6 text-weight-bold">{{ money(cajaResumen.vendidos_monto) }} Bs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-caption text-grey-7">Prestamos material</div>
+            <div class="text-h6 text-weight-bold">{{ money(cajaResumen.prestamos_monto) }} Bs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-caption text-grey-7">Pendiente cobro</div>
+            <div class="text-h6 text-weight-bold text-orange-8">{{ money(cajaResumen.pendiente_monto) }} Bs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-6 col-md-3">
+        <q-card flat bordered>
+          <q-card-section class="row items-center">
+            <div>
+              <div class="text-caption text-grey-7">Caja prestamos</div>
+              <div class="text-h6 text-weight-bold text-primary">{{ money(cajaResumen.caja_total) }} Bs</div>
+            </div>
+            <q-space />
+            <q-btn dense flat round icon="history" color="primary" @click="abrirCajaHistorial" />
+            <q-btn dense flat round icon="remove_circle" color="negative" @click="abrirCajaMovimiento('egreso')" />
+            <q-btn dense flat round icon="add_circle" color="positive" @click="abrirCajaMovimiento('ingreso')" />
+          </q-card-section>
+        </q-card>
+      </div>
+    </div>
+
     <q-card flat bordered>
       <q-table
         dense
@@ -45,6 +86,10 @@
                 <q-item clickable v-close-popup @click="abrirHistorial(props.row)">
                   <q-item-section avatar><q-icon name="history" color="indigo" /></q-item-section>
                   <q-item-section>Historial retornos</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup :disable="!puedeDarBaja(props.row)" @click="darBajaPrestamo(props.row)">
+                  <q-item-section avatar><q-icon name="money_off" color="negative" /></q-item-section>
+                  <q-item-section>Dar de baja</q-item-section>
                 </q-item>
               </q-list>
             </q-btn-dropdown>
@@ -224,6 +269,45 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="dialogCajaMov">
+      <q-card style="width: 520px; max-width: 96vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">{{ cajaForm.tipo_movimiento === 'egreso' ? 'Retirar de caja prestamos' : 'Ingreso caja prestamos' }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <q-form @submit.prevent="guardarCajaMovimiento">
+            <q-input v-model.number="cajaForm.monto" dense outlined type="number" min="0.01" step="0.01" label="Monto" :rules="[req]" class="q-mb-sm" />
+            <q-input v-model="cajaForm.observacion" dense outlined label="Observacion" class="q-mb-md" />
+            <div class="row justify-end q-gutter-sm">
+              <q-btn flat color="negative" no-caps label="Cancelar" v-close-popup />
+              <q-btn color="primary" no-caps label="Guardar" type="submit" :loading="loadingCajaMov" />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="dialogCajaHistorial">
+      <q-card style="width: 900px; max-width: 98vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">Historial caja prestamos</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div class="row q-col-gutter-sm q-mb-sm items-end">
+            <div class="col-12 col-md-3"><q-input v-model="cajaFiltros.date_from" dense outlined type="date" label="Desde" /></div>
+            <div class="col-12 col-md-3"><q-input v-model="cajaFiltros.date_to" dense outlined type="date" label="Hasta" /></div>
+            <div class="col-12 col-md-3"><q-btn color="primary" no-caps icon="refresh" label="Actualizar" :loading="loadingCajaHistorial" @click="cargarCajaMovimientos" /></div>
+            <div class="col-12 col-md-3 text-right text-weight-bold">Saldo: {{ money(cajaResumen.caja_total) }} Bs</div>
+          </div>
+          <q-table dense flat bordered :rows="cajaMovimientos" :columns="colsCajaMov" row-key="id" :loading="loadingCajaHistorial" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -243,7 +327,27 @@ export default {
       dialogPrestamo: false,
       dialogRetorno: false,
       dialogHistorial: false,
+      dialogCajaMov: false,
+      dialogCajaHistorial: false,
       retornoRow: null,
+      loadingCajaMov: false,
+      loadingCajaHistorial: false,
+      cajaResumen: {
+        vendidos_monto: 0,
+        prestamos_monto: 0,
+        pendiente_monto: 0,
+        caja_total: 0
+      },
+      cajaForm: {
+        tipo_movimiento: 'egreso',
+        monto: null,
+        observacion: ''
+      },
+      cajaFiltros: {
+        date_from: new Date().toISOString().slice(0, 10),
+        date_to: new Date().toISOString().slice(0, 10)
+      },
+      cajaMovimientos: [],
       retorno: {
         cantidad: 0,
         efectivo: 0,
@@ -283,6 +387,14 @@ export default {
         { name: 'efectivo', label: 'Fisico retornado', field: 'efectivo', align: 'right' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' },
         { name: 'user', label: 'Usuario', field: row => row.user?.name || '-', align: 'left' }
+      ],
+      colsCajaMov: [
+        { name: 'id', label: 'ID', field: 'id', align: 'left' },
+        { name: 'created_at', label: 'Fecha', field: 'created_at', align: 'left' },
+        { name: 'tipo_movimiento', label: 'Tipo', field: 'tipo_movimiento', align: 'left' },
+        { name: 'monto', label: 'Monto', field: 'monto', align: 'right' },
+        { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' },
+        { name: 'usuario', label: 'Usuario', field: 'usuario', align: 'left' }
       ]
     }
   },
@@ -343,16 +455,21 @@ export default {
       if (estado === 'VENDIDO') return 'positive'
       if (estado === 'RETORNADO') return 'indigo'
       if (estado === 'ANULADO') return 'negative'
+      if (estado === 'BAJA') return 'brown-7'
       if (estado === 'PARCIAL') return 'deep-orange'
       return 'orange-8'
     },
     puedeRetornar (row) {
       return ['EN PRESTAMO', 'PARCIAL'].includes(row.estado)
     },
+    puedeDarBaja (row) {
+      if (row.tipo === 'venta') return false
+      return !['RETORNADO', 'ANULADO', 'BAJA'].includes(row.estado)
+    },
     async cargarAll () {
       this.loading = true
       try {
-        await Promise.all([this.cargarInventarios(), this.cargarPrestamos(), this.cargarClientes()])
+        await Promise.all([this.cargarInventarios(), this.cargarPrestamos(), this.cargarClientes(), this.cargarCajaResumen()])
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar prestamos')
       } finally {
@@ -371,6 +488,44 @@ export default {
       const r = await this.$axios.get('clientes', { params: { tipo_cliente: this.tipoCliente } })
       this.clientes = (r.data || []).filter(c => !!c.estado)
       this.clientesFiltrados = this.clientesOptions(this.clientes)
+    },
+    async cargarCajaResumen () {
+      const r = await this.$axios.get('prestamos/caja/resumen', { params: { tipo_venta: this.tipoCliente } })
+      this.cajaResumen = r.data || this.cajaResumen
+    },
+    abrirCajaMovimiento (tipo) {
+      this.cajaForm = { tipo_movimiento: tipo, monto: null, observacion: '' }
+      this.dialogCajaMov = true
+    },
+    async guardarCajaMovimiento () {
+      this.loadingCajaMov = true
+      try {
+        await this.$axios.post('prestamos/caja/movimientos', this.cajaForm)
+        this.dialogCajaMov = false
+        await this.cargarCajaResumen()
+        if (this.dialogCajaHistorial) await this.cargarCajaMovimientos()
+        this.$alert.success('Movimiento de caja registrado')
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo registrar movimiento')
+      } finally {
+        this.loadingCajaMov = false
+      }
+    },
+    abrirCajaHistorial () {
+      this.dialogCajaHistorial = true
+      this.cargarCajaMovimientos()
+    },
+    async cargarCajaMovimientos () {
+      this.loadingCajaHistorial = true
+      try {
+        const r = await this.$axios.get('prestamos/caja/movimientos', { params: this.cajaFiltros })
+        this.cajaMovimientos = r.data?.movimientos || []
+        await this.cargarCajaResumen()
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar historial de caja')
+      } finally {
+        this.loadingCajaHistorial = false
+      }
     },
     clientesOptions (rows) {
       return rows.map(c => ({ label: c.nombre, value: c.id }))
@@ -409,7 +564,7 @@ export default {
           tipo_venta: this.tipoCliente
         })
         this.dialogPrestamo = false
-        await Promise.all([this.cargarPrestamos(), this.cargarInventarios()])
+        await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
         this.$alert.success('Registro guardado')
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo guardar')
@@ -437,7 +592,7 @@ export default {
       try {
         await this.$axios.post(`prestamos/${this.retornoRow.id}/retorno-parcial`, this.retorno)
         this.dialogRetorno = false
-        await Promise.all([this.cargarPrestamos(), this.cargarInventarios()])
+        await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
         this.$alert.success('Retorno parcial registrado')
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo registrar retorno parcial')
@@ -450,12 +605,28 @@ export default {
         .onOk(async () => {
         try {
           await this.$axios.post(`prestamos/${row.id}/retornar`)
-          await Promise.all([this.cargarPrestamos(), this.cargarInventarios()])
+          await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
           this.$alert.success('Prestamo retornado completo')
         } catch (e) {
           this.$alert.error(e.response?.data?.message || 'No se pudo retornar el prestamo')
         }
       })
+    },
+    darBajaPrestamo (row) {
+      this.$alert.dialog('Desea dar de baja este prestamo? El material no volvera al inventario.')
+        .onOk(async () => {
+          try {
+            await this.$axios.post(`prestamos/${row.id}/dar-baja`, {
+              monto: Number(row.monto_pendiente ?? row.efectivo_actual ?? 0),
+              observacion: 'Baja desde prestamos'
+            })
+            await Promise.all([this.cargarPrestamos(), this.cargarCajaResumen()])
+            if (this.dialogCajaHistorial) await this.cargarCajaMovimientos()
+            this.$alert.success('Prestamo dado de baja')
+          } catch (e) {
+            this.$alert.error(e.response?.data?.message || 'No se pudo dar de baja')
+          }
+        })
     }
   }
 }

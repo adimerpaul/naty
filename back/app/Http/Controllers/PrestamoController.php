@@ -16,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class PrestamoController extends Controller
 {
+    private const CAJA_PRESTAMOS_ID = 3;
+
     public function index(Request $request)
     {
         $query = Prestamo::with(['cliente', 'inventario', 'venta', 'retornos.user'])->orderBy('id', 'desc');
@@ -74,17 +76,19 @@ class PrestamoController extends Controller
                     return response()->json(['message' => 'Debe registrar efectivo para venta de material'], 422);
                 }
                 $ventaGenerada = Venta::create([
-                    'caja_id' => 1,
+                    'caja_id' => self::CAJA_PRESTAMOS_ID,
                     'cliente_id' => $cliente?->id,
                     'user_id' => $request->user()->id ?? null,
-                    'tipo_venta' => $validated['tipo_venta'] ?? 'detalle',
+                    'tipo_venta' => 'caja_prestamos',
                     'tipo_movimiento' => 'ingreso',
                     'tipo_pago' => 'contado',
                     'estado' => 'ACTIVA',
                     'cliente_nombre' => $cliente?->nombre,
                     'cliente_telefono' => $cliente?->telefono,
                     'cliente_direccion' => $cliente?->direccion,
-                    'observacion' => 'Venta de material inventario. '.($validated['observacion'] ?? ''),
+                    'observacion' => 'Venta de material inventario'
+                        .(! empty($validated['tipo_venta']) ? ' '.$validated['tipo_venta'] : '')
+                        .'. '.($validated['observacion'] ?? ''),
                     'total' => round($monto, 2),
                 ]);
                 VentaDetalle::create([
@@ -219,6 +223,147 @@ class PrestamoController extends Controller
         });
     }
 
+    public function darBaja(Request $request, Prestamo $prestamo)
+    {
+        $validated = $request->validate([
+            'monto' => 'nullable|numeric|min:0',
+            'observacion' => 'nullable|string|max:255',
+        ]);
+
+        if ($prestamo->tipo === 'venta') {
+            return response()->json(['message' => 'No se puede dar de baja un registro de tipo venta'], 422);
+        }
+
+        if (in_array($prestamo->estado, ['RETORNADO', 'ANULADO', 'BAJA'], true)) {
+            return response()->json(['message' => 'No se puede dar de baja este prestamo en su estado actual'], 422);
+        }
+
+        return DB::transaction(function () use ($prestamo, $request, $validated) {
+            $prestamo->refresh()->loadMissing(['cliente', 'inventario', 'retornos']);
+            $saldo = $this->saldoEfectivo($prestamo);
+            $monto = isset($validated['monto']) ? round((float) $validated['monto'], 2) : $saldo;
+            $obs = trim((string) ($validated['observacion'] ?? ''));
+
+            $prestamo->update([
+                'estado' => 'BAJA',
+                'prestado' => false,
+                'observacion' => trim(($prestamo->observacion ? $prestamo->observacion . ' | ' : '') . 'Baja: ' . ($obs !== '' ? $obs : 'sin detalle')),
+            ]);
+
+            if ($monto > 0) {
+                $this->crearMovimientoCajaPrestamos([
+                    'tipo_movimiento' => 'ingreso',
+                    'monto' => $monto,
+                    'user_id' => $request->user()->id ?? null,
+                    'observacion' => 'Baja prestamo #' . $prestamo->id . ($obs !== '' ? ' - ' . $obs : ''),
+                ]);
+            }
+
+            return $this->withResumen($prestamo->fresh(['cliente', 'inventario', 'venta', 'retornos.user']));
+        });
+    }
+
+    public function cajaResumen(Request $request)
+    {
+        $tipoVenta = $request->validate([
+            'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
+        ])['tipo_venta'] ?? 'detalle';
+
+        $prestamos = Prestamo::with(['cliente', 'retornos'])
+            ->whereHas('cliente', fn ($q) => $q->where('tipo_cliente', $tipoVenta))
+            ->whereNotIn('estado', ['ANULADO'])
+            ->get();
+
+        $vendidosMonto = 0.0;
+        $prestamosMonto = 0.0;
+        $pendienteMonto = 0.0;
+        foreach ($prestamos as $p) {
+            $monto = $this->montoPrestamo($p);
+            $pend = $this->saldoEfectivo($p);
+            $pendienteMonto += $pend;
+            if ($p->tipo === 'venta') {
+                $vendidosMonto += $monto;
+            } else {
+                $prestamosMonto += $monto;
+            }
+        }
+
+        return response()->json([
+            'tipo_venta' => $tipoVenta,
+            'vendidos_monto' => round($vendidosMonto, 2),
+            'prestamos_monto' => round($prestamosMonto, 2),
+            'pendiente_monto' => round($pendienteMonto, 2),
+            'caja_total' => $this->saldoCajaPrestamos(),
+        ]);
+    }
+
+    public function cajaMovimientos(Request $request)
+    {
+        $validated = $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        $query = Venta::with(['user', 'pagos'])
+            ->where('caja_id', self::CAJA_PRESTAMOS_ID)
+            ->where('tipo_venta', 'caja_prestamos')
+            ->orderByDesc('id');
+
+        if (!empty($validated['date_from'])) {
+            $query->whereDate('created_at', '>=', $validated['date_from']);
+        }
+        if (!empty($validated['date_to'])) {
+            $query->whereDate('created_at', '<=', $validated['date_to']);
+        }
+
+        $rows = $query->get()->map(function (Venta $v) {
+            $pagado = (float) $v->pagos->where('estado', 'PAGADO')->sum('monto');
+            return [
+                'id' => $v->id,
+                'created_at' => $v->created_at,
+                'tipo_movimiento' => $v->tipo_movimiento,
+                'monto' => round($pagado > 0 ? $pagado : (float) $v->total, 2),
+                'observacion' => $v->observacion,
+                'estado' => $v->estado,
+                'usuario' => $v->user?->name ?? $v->user?->username ?? '-',
+            ];
+        })->values();
+
+        return response()->json([
+            'caja_total' => $this->saldoCajaPrestamos(),
+            'movimientos' => $rows,
+        ]);
+    }
+
+    public function registrarCajaMovimiento(Request $request)
+    {
+        $validated = $request->validate([
+            'tipo_movimiento' => ['required', Rule::in(['ingreso', 'egreso'])],
+            'monto' => 'required|numeric|min:0.01',
+            'observacion' => 'nullable|string|max:255',
+        ]);
+
+        return DB::transaction(function () use ($validated, $request) {
+            $monto = round((float) $validated['monto'], 2);
+            if ($validated['tipo_movimiento'] === 'egreso' && $monto > $this->saldoCajaPrestamos()) {
+                return response()->json(['message' => 'Fondos insuficientes en caja prestamos'], 422);
+            }
+
+            $venta = $this->crearMovimientoCajaPrestamos([
+                'tipo_movimiento' => $validated['tipo_movimiento'],
+                'monto' => $monto,
+                'user_id' => $request->user()->id ?? null,
+                'observacion' => trim((string) ($validated['observacion'] ?? '')) ?: 'Movimiento manual caja prestamos',
+            ]);
+
+            return response()->json([
+                'message' => 'Movimiento registrado',
+                'movimiento' => $venta,
+                'caja_total' => $this->saldoCajaPrestamos(),
+            ]);
+        });
+    }
+
     private function registrarRetorno(
         Prestamo $prestamo,
         Request $request,
@@ -294,5 +439,60 @@ class PrestamoController extends Controller
         }
 
         return $monto;
+    }
+
+    private function crearMovimientoCajaPrestamos(array $data): Venta
+    {
+        $venta = Venta::create([
+            'caja_id' => self::CAJA_PRESTAMOS_ID,
+            'cliente_id' => null,
+            'user_id' => $data['user_id'] ?? null,
+            'tipo_venta' => 'caja_prestamos',
+            'tipo_movimiento' => $data['tipo_movimiento'],
+            'tipo_pago' => 'contado',
+            'estado' => 'ACTIVA',
+            'cliente_nombre' => null,
+            'cliente_telefono' => null,
+            'cliente_direccion' => null,
+            'total' => $data['monto'],
+            'observacion' => $data['observacion'] ?? null,
+        ]);
+
+        Pago::create([
+            'venta_id' => $venta->id,
+            'user_id' => $data['user_id'] ?? null,
+            'nro_cuota' => 1,
+            'monto' => $data['monto'],
+            'fecha_programada' => now()->toDateString(),
+            'fecha_pago' => now(),
+            'metodo' => 'efectivo',
+            'estado' => 'PAGADO',
+            'observacion' => 'Movimiento caja prestamos',
+        ]);
+
+        return $venta;
+    }
+
+    private function saldoCajaPrestamos(): float
+    {
+        $rows = Venta::with('pagos')
+            ->where('caja_id', self::CAJA_PRESTAMOS_ID)
+            ->where('tipo_venta', 'caja_prestamos')
+            ->where('estado', 'ACTIVA')
+            ->get();
+
+        $ing = 0.0;
+        $egr = 0.0;
+        foreach ($rows as $row) {
+            $monto = (float) $row->pagos->where('estado', 'PAGADO')->sum('monto');
+            $real = $monto > 0 ? $monto : (float) $row->total;
+            if ($row->tipo_movimiento === 'egreso') {
+                $egr += $real;
+            } else {
+                $ing += $real;
+            }
+        }
+
+        return round($ing - $egr, 2);
     }
 }

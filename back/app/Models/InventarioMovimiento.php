@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InventarioMovimiento extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'inventario_movimientos';
 
@@ -46,4 +47,3 @@ class InventarioMovimiento extends Model
         return $this->belongsTo(User::class, 'anulado_por');
     }
 }
-

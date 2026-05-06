@@ -984,57 +984,170 @@ Oruro</div>
     const fechaTxt = `${dd}/${mm}/${yy}`;
     const detalles = venta.detalles || [];
     const prestamos = venta.prestamos || [];
+    const usuario = venta.user?.name || venta.user?.username || '-';
+    const cliente = venta.cliente_nombre || venta.cliente?.nombre || '-';
+    const observacion = venta.observacion || '';
+    const money = n => Number(n || 0).toFixed(0);
     const rows = detalles.map(d => `
       <tr>
-        <td>${Number(d.cantidad || 0)}</td>
-        <td>${d.producto_nombre || ''}</td>
-<!--        <td style="text-align:right">${Number(d.subtotal || 0).toFixed(2)}</td>-->
+        <td class="qty">${Number(d.cantidad || 0)}</td>
+        <td class="prod">${d.producto_nombre || ''}</td>
+        <td class="num">${money(d.subtotal)}</td>
       </tr>
     `).join('');
     const rowsPrestamo = prestamos.map(p => `
       <tr>
-        <td>${Number(p.cantidad || 0)}</td>
-        <td>${p.inventario?.nombre || 'material'}</td>
-        <td>${p.tipo || '-'}</td>
+        <td class="qty">${Number(p.cantidad || 0)}</td>
+        <td class="mat">${p.inventario?.nombre || 'material'}</td>
+        <td class="num">${money(p.efectivo ?? p.fisico_recibido)}</td>
+        <td class="tipo">${String(p.tipo || '-').toUpperCase()}</td>
       </tr>
     `).join('');
-
-    const html = `
-      <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
-        <div style="text-align:center;border-bottom:1px solid #222;padding-bottom:4px;margin-bottom:8px;">
-          <div style="font-size:30px;font-weight:bold;">Ficha de Despacho</div>
-          <div style="font-size:30px">${fechaTxt}</div>
-        </div>
-        <div><b>Nro :</b> ${venta.id}</div>
-        ${venta.tipo_venta === 'local' ? `<div><b>Local:</b> ${venta.cliente_direccion || '-'}</div>` : ''}
-        <div><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
-        <div><b>Usuario:</b> ${venta.user?.name || venta.user?.username || '-'}</div>
-        <hr>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    const materialTable = rowsPrestamo
+      ? `
+        <table class="material-table">
           <thead>
             <tr>
-            <th style="text-align:left">Cant</th>
-            <th style="text-align:left">Prod</th>
-<!--            <th style="text-align:right">Subt</th>-->
+              <th>CANT</th>
+              <th>MATERIAL</th>
+              <th>MONTO</th>
+              <th>TIPO</th>
+            </tr>
+          </thead>
+          <tbody>${rowsPrestamo}</tbody>
+        </table>`
+      : '';
+
+    const html = `
+      <style>
+        .despacho-ticket {
+          width: 300px;
+          font-family: "Times New Roman", serif;
+          color: #111;
+          font-size: 14px;
+          line-height: 1.15;
+        }
+        .despacho-ticket .top-title {
+          display: flex;
+          justify-content: flex-end;
+          gap: 28px;
+          font-size: 16px;
+          margin-bottom: 8px;
+        }
+        .despacho-ticket .row-line {
+          font-size: 15px;
+        }
+        .despacho-ticket .dash {
+          border: 0;
+          border-top: 1px dashed #222;
+          margin: 8px 0;
+        }
+        .despacho-ticket .tear {
+          text-align: center;
+          letter-spacing: 2px;
+          margin: 12px 0 8px;
+          font-weight: bold;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+        .despacho-ticket table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .despacho-ticket th {
+          font-size: 18px;
+          font-weight: bold;
+          text-align: left;
+          padding: 2px 0;
+        }
+        .despacho-ticket td {
+          font-size: 18px;
+          padding: 2px 0;
+          vertical-align: top;
+        }
+        .despacho-ticket .qty {
+          width: 38px;
+        }
+        .despacho-ticket .prod {
+          width: 180px;
+          text-align: center;
+        }
+        .despacho-ticket .num {
+          width: 44px;
+          text-align: center;
+        }
+        .despacho-ticket .mat {
+          width: 118px;
+          text-align: center;
+          word-break: break-word;
+        }
+        .despacho-ticket .tipo {
+          width: 84px;
+          text-align: right;
+        }
+        .despacho-ticket .section-title {
+          text-align: center;
+          font-size: 15px;
+          margin-bottom: 4px;
+        }
+        .despacho-ticket .copy-title {
+          text-align: center;
+          font-size: 16px;
+          margin-bottom: 4px;
+        }
+        .despacho-ticket .strong {
+          font-size: 18px;
+          font-weight: bold;
+        }
+        .despacho-ticket .firma {
+          margin-top: 58px;
+          text-align: center;
+          font-size: 18px;
+          font-weight: bold;
+        }
+        .despacho-ticket .terms {
+          margin-top: 10px;
+          font-size: 20px;
+          font-weight: bold;
+        }
+      </style>
+      <div class="despacho-ticket">
+        <div class="top-title">
+          <span>Ficha de Despacho</span>
+          <span>${fechaTxt}</span>
+        </div>
+        <div class="row-line">Nro :${venta.id}</div>
+        ${venta.tipo_venta === 'local' ? `<div><b>Local:</b> ${venta.cliente_direccion || '-'}</div>` : ''}
+        <div class="row-line">Nombre: ${cliente}</div>
+        <div class="row-line">Usuario: ${usuario}</div>
+        <hr class="dash">
+        <table>
+          <thead>
+            <tr>
+              <th>Cant</th>
+              <th style="text-align:center;">Prod</th>
+              <th style="text-align:center;">Subt</th>
             </tr>
           </thead>
           <tbody>${rows || '<tr><td colspan="3">Sin detalle</td></tr>'}</tbody>
         </table>
-        ${prestamos.length ? `
-        <hr>
-        <div style="font-size:15px;"><b>Material / Prestamo</b></div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead>
-            <tr>
-            <th style="text-align:left">Cant</th>
-            <th style="text-align:left">Material</th>
-            <th style="text-align:left">Tipo</th>
-            </tr>
-          </thead>
-          <tbody>${rowsPrestamo}</tbody>
-        </table>` : ''}
-<!--        <div style="margin-top:10px;font-size:16px;"><b>TOTAL: ${Number(venta.total || 0).toFixed(2)} Bs</b></div>-->
-        <div style="margin-top:6px;">Observacion: ${venta.observacion || ''}</div>
+        <div class="strong">TOTAL: ${money(venta.total)} Bs</div>
+        <div>Observacion: ${observacion}</div>
+        ${materialTable}
+        ${rowsPrestamo ? `
+          <div class="tear">########################</div>
+          <div class="section-title">Detalle de Prestamo o Venta de material</div>
+          <div class="strong">Cliente - ${cliente}</div>
+          ${materialTable}
+          <div class="tear">########################</div>
+          <div class="copy-title">copia para archivo</div>
+          <div class="strong">Cliente - ${cliente}</div>
+          <div class="strong">Fecha: ${fechaTxt.split('/').reverse().join('-')}</div>
+          <div class="strong">Usuario: ${usuario}</div>
+          ${materialTable}
+          <div class="firma">FIRMA</div>
+          <div class="terms">* Acepto todas las condiciones y terminos de prestamo de envases</div>
+        ` : ''}
       </div>
     `;
     this.printTicketHtml(html);

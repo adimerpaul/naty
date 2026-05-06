@@ -78,7 +78,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/inventarios/{inventario}', [InventarioController::class, 'destroy']);
 
     Route::get('/prestamos', [PrestamoController::class, 'index']);
+    Route::get('/prestamos/caja/resumen', [PrestamoController::class, 'cajaResumen']);
+    Route::get('/prestamos/caja/movimientos', [PrestamoController::class, 'cajaMovimientos']);
+    Route::post('/prestamos/caja/movimientos', [PrestamoController::class, 'registrarCajaMovimiento']);
     Route::post('/prestamos', [PrestamoController::class, 'store']);
+    Route::post('/prestamos/{prestamo}/dar-baja', [PrestamoController::class, 'darBaja']);
     Route::post('/prestamos/{prestamo}/retorno-parcial', [PrestamoController::class, 'retornoParcial']);
     Route::post('/prestamos/{prestamo}/retornar', [PrestamoController::class, 'retornar']);
 
