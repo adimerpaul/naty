@@ -516,7 +516,7 @@
                 min="0"
                 dense
                 outlined
-                :label="garantia.tipo === 'venta' ? 'Monto efectivo' : 'Fisico recibido'"
+                label="Monto recibido"
                 @update:model-value="garantia.efectivo_manual = true"
               >
                 <template #append>
@@ -538,14 +538,59 @@
                 ]"
               />
             </div>
-            <div class="col-12">
-              <q-input v-model="garantia.observacion" dense outlined type="textarea" autogrow label="Observacion" />
+            <div class="col-12 col-md-8">
+              <q-input v-model="garantia.observacion" dense outlined type="textarea" autogrow label="Fisico recibido" />
+            </div>
+            <div class="col-12 col-md-4 flex items-end">
+              <q-btn
+                color="primary"
+                no-caps
+                icon="add"
+                label="Agregar a tabla"
+                class="full-width"
+                @click="agregarGarantiaItem"
+              />
+            </div>
+            <div class="col-12 q-mt-sm">
+              <q-table
+                dense
+                flat
+                bordered
+                :rows="garantiaItems"
+                :columns="colsGarantiaItems"
+                row-key="uid"
+                hide-pagination
+                :rows-per-page-options="[0]"
+              >
+                <template #body-cell-tipo="props">
+                  <q-td :props="props">
+                    <q-chip dense :color="props.row.tipo === 'venta' ? 'primary' : 'warning'" text-color="white">
+                      {{ props.row.tipo === 'venta' ? 'Venta' : 'Prestamo' }}
+                    </q-chip>
+                  </q-td>
+                </template>
+                <template #body-cell-efectivo="props">
+                  <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+                </template>
+                <template #body-cell-actions="props">
+                  <q-td :props="props">
+                    <q-btn
+                      dense
+                      flat
+                      round
+                      color="negative"
+                      icon="delete"
+                      @click="quitarGarantiaItem(props.row.uid)"
+                    />
+                  </q-td>
+                </template>
+              </q-table>
             </div>
           </div>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
-          <q-btn no-caps color="primary" label="Guardar" :loading="loadingGarantia" @click="guardarGarantia" />
+          <q-btn no-caps color="primary" label="Guardar todo" :loading="loadingGarantia" @click="guardarGarantia" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -629,6 +674,7 @@ export default {
         fisico: '',
         observacion: ''
       },
+      garantiaItems: [],
       historialCols: [
         { name: 'actions', label: '', field: 'actions', align: 'left' },
         { name: 'id', label: 'ID', field: 'id', align: 'left' },
@@ -652,6 +698,15 @@ export default {
         { name: 'cantidad_actual', label: 'Cant. pendiente', field: 'cantidad_actual', align: 'right' },
         { name: 'fisico_recibido', label: 'Monto recibido', field: 'fisico_recibido', align: 'right' },
         { name: 'monto_pendiente', label: 'Monto pendiente', field: 'monto_pendiente', align: 'right' },
+        { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
+      ],
+      colsGarantiaItems: [
+        { name: 'actions', label: '', align: 'left' },
+        { name: 'inventario', label: 'Inventario', field: 'inventario_nombre', align: 'left' },
+        { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
+        { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'efectivo', label: 'Fisico / Monto', field: 'efectivo', align: 'right' },
+        { name: 'metodo_pago', label: 'Metodo', field: 'metodo_pago', align: 'left' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
       ]
     }
@@ -906,6 +961,7 @@ export default {
     },
     async abrirDialogGarantia () {
       this.garantia = { inventario_id: null, cantidad: 1, tipo: 'prestamo', efectivo: 0, efectivo_manual: false, metodo_pago: 'efectivo', fisico: '', observacion: '' }
+      this.garantiaItems = []
       try {
         await this.cargarInventarios()
       } catch (e) {
@@ -926,7 +982,7 @@ export default {
       if (this.garantia.efectivo_manual) return
       this.aplicarPrecioSugerido()
     },
-    async guardarGarantia () {
+    agregarGarantiaItem () {
       if (!this.garantia.inventario_id) {
         this.$alert.error('Debe seleccionar inventario')
         return
@@ -935,7 +991,11 @@ export default {
         this.$alert.error('Debe registrar cantidad valida')
         return
       }
-      if (this.selectedInventario && Number(this.garantia.cantidad || 0) > Number(this.selectedInventario.cantidad || 0)) {
+      const disponible = Number(this.selectedInventario?.cantidad || 0)
+      const usados = this.garantiaItems
+        .filter(i => i.inventario_id === this.garantia.inventario_id)
+        .reduce((acc, it) => acc + Number(it.cantidad || 0), 0)
+      if (Number(this.garantia.cantidad || 0) + usados > disponible) {
         this.$alert.error('La cantidad supera el inventario disponible')
         return
       }
@@ -943,22 +1003,56 @@ export default {
         this.$alert.error('Debe registrar monto efectivo para venta de material')
         return
       }
+
+      const item = {
+        uid: `${Date.now()}-${Math.round(Math.random() * 100000)}`,
+        inventario_id: this.garantia.inventario_id,
+        inventario_nombre: this.selectedInventario?.nombre || '-',
+        tipo: this.garantia.tipo,
+        cantidad: Number(this.garantia.cantidad || 0),
+        efectivo: Number(this.garantia.efectivo || 0),
+        metodo_pago: this.garantia.metodo_pago || 'efectivo',
+        observacion: this.garantia.observacion || ''
+      }
+      this.garantiaItems.push(item)
+
+      this.garantia = {
+        inventario_id: null,
+        cantidad: 1,
+        tipo: 'prestamo',
+        efectivo: 0,
+        efectivo_manual: false,
+        metodo_pago: 'efectivo',
+        fisico: '',
+        observacion: ''
+      }
+    },
+    quitarGarantiaItem (uid) {
+      this.garantiaItems = this.garantiaItems.filter(i => i.uid !== uid)
+    },
+    async guardarGarantia () {
+      if (!this.garantiaItems.length) {
+        this.$alert.error('Debe agregar al menos un material a la tabla')
+        return
+      }
       this.loadingGarantia = true
       try {
         const venta = await this.crearVenta()
         if (!venta) return
-        await this.$axios.post('prestamos', {
-          venta_id: venta.id,
-          cliente_id: venta.cliente_id,
-          inventario_id: this.garantia.inventario_id,
-          cantidad: this.garantia.cantidad,
-          tipo: this.garantia.tipo,
-          efectivo: this.garantia.efectivo,
-          metodo_pago: this.garantia.metodo_pago,
-          fisico: '',
-          observacion: this.garantia.observacion,
-          tipo_venta: this.tipoVenta
-        })
+        for (const item of this.garantiaItems) {
+          await this.$axios.post('prestamos', {
+            venta_id: venta.id,
+            cliente_id: venta.cliente_id,
+            inventario_id: item.inventario_id,
+            cantidad: item.cantidad,
+            tipo: item.tipo,
+            efectivo: item.efectivo,
+            metodo_pago: item.metodo_pago,
+            fisico: '',
+            observacion: item.observacion,
+            tipo_venta: this.tipoVenta
+          })
+        }
         this.$alert.success('Garantia registrada')
         this.dialogGarantia = false
         await this.imprimirVentaCompleta(venta.id)
@@ -1043,6 +1137,7 @@ export default {
         fisico: '',
         observacion: ''
       }
+      this.garantiaItems = []
     }
   }
 }

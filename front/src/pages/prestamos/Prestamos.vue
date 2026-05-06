@@ -137,7 +137,7 @@
                   type="number"
                   min="0"
                   step="0.01"
-                  label="Fisico recibido"
+                  label="Monto recibido"
                   @update:model-value="pres.efectivo_manual = true"
                 >
                   <template #append>
@@ -160,7 +160,7 @@
                 />
               </div>
               <div class="col-12">
-                <q-input v-model="pres.observacion" dense outlined label="Observacion" />
+                <q-input v-model="pres.observacion" dense outlined label="Fisico recibido" />
               </div>
             </div>
             <div class="row justify-end q-gutter-sm q-mt-md">
