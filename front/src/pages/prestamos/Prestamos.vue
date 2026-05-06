@@ -292,7 +292,7 @@ export default {
     tituloCorto () { return this.tipoCliente === 'local' ? 'prestamo local' : 'prestamo detalle' },
     inventariosOptions () {
       return this.inventarios
-        .filter(i => Number(i.cantidad || 0) > 0 && String(i.estado || '').toUpperCase() === 'ACTIVO')
+        .filter(i => Number(i.cantidad || 0) > 0 && this.isInventarioActivo(i))
         .map(i => ({ label: `${i.nombre} (${i.cantidad}) - ${this.money(i.precio)} Bs`, value: i.id }))
     },
     selectedInventario () {
@@ -335,6 +335,9 @@ export default {
     },
     req (v) { return !!v || 'Campo requerido' },
     money (n) { return Number(n || 0).toFixed(2) },
+    isInventarioActivo (inventario) {
+      return String(inventario?.estado || '').toUpperCase() === 'ACTIVO'
+    },
     estadoColor (estado) {
       if (estado === 'VENDIDO') return 'positive'
       if (estado === 'RETORNADO') return 'indigo'
@@ -357,7 +360,7 @@ export default {
     },
     async cargarInventarios () {
       const r = await this.$axios.get('inventarios')
-      this.inventarios = r.data || []
+      this.inventarios = (r.data || []).filter(i => this.isInventarioActivo(i))
     },
     async cargarPrestamos () {
       const r = await this.$axios.get('prestamos', { params: { tipo_venta: this.tipoCliente } })

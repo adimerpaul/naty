@@ -27,6 +27,13 @@
             </q-btn-dropdown>
           </q-td>
         </template>
+        <template #body-cell-estado="props">
+          <q-td :props="props">
+            <q-chip dense :color="inventarioEstadoColor(props.row.estado)" text-color="white">
+              {{ inventarioEstadoLabel(props.row.estado) }}
+            </q-chip>
+          </q-td>
+        </template>
       </q-table>
     </q-card>
 
@@ -42,7 +49,15 @@
               <div class="col-6"><q-input v-model.number="inv.cantidad" type="number" min="0" dense outlined label="Cantidad" :rules="[req]" /></div>
               <div class="col-6"><q-input v-model.number="inv.precio" type="number" min="0" step="0.01" dense outlined label="Precio" /></div>
               <div class="col-6"><q-input v-model.number="inv.orden" type="number" min="0" dense outlined label="Orden" /></div>
-              <div class="col-6"><q-input v-model="inv.estado" dense outlined label="Estado" /></div>
+              <div class="col-6 flex items-center">
+                <q-toggle
+                  v-model="inv.estado"
+                  true-value="ACTIVO"
+                  false-value="INACTIVO"
+                  color="positive"
+                  :label="inventarioEstadoLabel(inv.estado)"
+                />
+              </div>
               <div class="col-12"><q-input v-model="inv.detalle" dense outlined label="Detalle" /></div>
             </div>
             <div class="row justify-end q-gutter-sm q-mt-md"><q-btn flat color="negative" no-caps label="Cancelar" v-close-popup /><q-btn color="primary" no-caps label="Guardar" type="submit" :loading="loading" /></div>
@@ -98,7 +113,11 @@ export default {
   },
   computed: {
     clientesOptions () { return this.clientes.map(c => ({ label: c.nombre, value: c.id })) },
-    inventariosOptions () { return this.inventarios.map(i => ({ label: `${i.nombre} (${i.cantidad})`, value: i.id })) }
+    inventariosOptions () {
+      return this.inventarios
+        .filter(i => this.isInventarioActivo(i))
+        .map(i => ({ label: `${i.nombre} (${i.cantidad})`, value: i.id }))
+    }
   },
   mounted () {
     this.cargarAll().then(() => this.aplicarPrefillDesdeRuta())
@@ -110,6 +129,18 @@ export default {
       if (estado === 'RETORNADO') return 'indigo'
       return 'orange-8'
     },
+    normalizeInventarioEstado (estado) {
+      return String(estado || '').toUpperCase() === 'ACTIVO' ? 'ACTIVO' : 'INACTIVO'
+    },
+    isInventarioActivo (inventario) {
+      return this.normalizeInventarioEstado(inventario?.estado) === 'ACTIVO'
+    },
+    inventarioEstadoLabel (estado) {
+      return this.normalizeInventarioEstado(estado) === 'ACTIVO' ? 'Activo' : 'Inactivo'
+    },
+    inventarioEstadoColor (estado) {
+      return this.normalizeInventarioEstado(estado) === 'ACTIVO' ? 'positive' : 'grey-7'
+    },
     async cargarAll () {
       await Promise.all([this.cargarInventarios(), this.cargarPrestamos(), this.cargarClientes()])
     },
@@ -120,12 +151,16 @@ export default {
       this.inv = { codigo: '', fecha: new Date().toISOString().slice(0, 10), nombre: '', cantidad: 0, detalle: '', orden: 0, estado: 'ACTIVO', precio: 0 }
       this.dialogInventario = true
     },
-    editarInventario (row) { this.inv = { ...row }; this.dialogInventario = true },
+    editarInventario (row) {
+      this.inv = { ...row, estado: this.normalizeInventarioEstado(row.estado) }
+      this.dialogInventario = true
+    },
     async guardarInventario () {
       this.loading = true
       try {
-        if (this.inv.id) await this.$axios.put(`inventarios/${this.inv.id}`, this.inv)
-        else await this.$axios.post('inventarios', this.inv)
+        const payload = { ...this.inv, estado: this.normalizeInventarioEstado(this.inv.estado) }
+        if (this.inv.id) await this.$axios.put(`inventarios/${this.inv.id}`, payload)
+        else await this.$axios.post('inventarios', payload)
         this.dialogInventario = false
         await this.cargarInventarios()
         this.$alert.success('Inventario guardado')
