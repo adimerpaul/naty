@@ -31,11 +31,25 @@
       :use-global-leaflet="false"
       @click="mapClick"
     >
+      <l-control-layers position="topright" />
+
       <l-tile-layer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url="https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+        :subdomains="['0','1','2','3']"
         layer-type="base"
-        name="OpenStreetMap"
+        name="Satelite"
+        :max-zoom="20"
+        :visible="true"
       />
+      <l-tile-layer
+        url="https://mt{s}.google.com/vt/lyrs=r&x={x}&y={y}&z={z}"
+        :subdomains="['0','1','2','3']"
+        layer-type="base"
+        name="Mapa"
+        :max-zoom="20"
+        :visible="false"
+      />
+
       <l-marker v-if="hasMarker" :lat-lng="marker">
         <l-popup>
           Ubicacion seleccionada<br>
@@ -53,7 +67,7 @@
 
 <script>
 import 'leaflet/dist/leaflet.css'
-import { LMap, LMarker, LPopup, LTileLayer } from '@vue-leaflet/vue-leaflet'
+import { LControlLayers, LMap, LMarker, LPopup, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import L from 'leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
@@ -73,6 +87,7 @@ export default {
   components: {
     LMap,
     LTileLayer,
+    LControlLayers,
     LMarker,
     LPopup
   },
@@ -147,9 +162,7 @@ export default {
         (pos) => {
           this.emitirUbicacion(pos.coords.latitude, pos.coords.longitude)
         },
-        () => {
-          // No-op: el usuario puede seleccionar manualmente en el mapa.
-        },
+        () => {},
         { enableHighAccuracy: true, timeout: 10000 }
       )
     }

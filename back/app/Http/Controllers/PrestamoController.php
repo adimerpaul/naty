@@ -77,10 +77,10 @@ class PrestamoController extends Controller
                     return response()->json(['message' => 'Debe registrar efectivo para venta de material'], 422);
                 }
                 $ventaGenerada = Venta::create([
-                    'caja_id' => self::CAJA_PRESTAMOS_ID,
+                    'caja_id' => 1,
                     'cliente_id' => $cliente?->id,
                     'user_id' => $request->user()->id ?? null,
-                    'tipo_venta' => 'caja_prestamos',
+                    'tipo_venta' => $validated['tipo_venta'] ?? 'detalle',
                     'tipo_movimiento' => 'ingreso',
                     'tipo_pago' => 'contado',
                     'estado' => 'ACTIVA',
@@ -221,6 +221,45 @@ class PrestamoController extends Controller
             ]);
 
             return $this->withResumen($prestamo->load(['cliente', 'inventario', 'venta', 'retornos.user']));
+        });
+    }
+
+    public function anular(Request $request, Prestamo $prestamo)
+    {
+        if ($prestamo->tipo !== 'venta') {
+            return response()->json(['message' => 'Solo se puede anular registros de tipo venta'], 422);
+        }
+
+        if ($prestamo->estado === 'ANULADO') {
+            return response()->json(['message' => 'Este registro ya fue anulado'], 422);
+        }
+
+        return DB::transaction(function () use ($prestamo) {
+            $prestamo->refresh()->loadMissing(['retornos', 'venta']);
+
+            $cantidadRetornada = (int) ($prestamo->retornos?->sum('cantidad') ?? 0);
+            $cantidadPendiente = max(0, (int) $prestamo->cantidad - $cantidadRetornada);
+
+            if ($cantidadPendiente > 0) {
+                $inv = Inventario::lockForUpdate()->findOrFail($prestamo->inventario_id);
+                $inv->update(['cantidad' => (int) $inv->cantidad + $cantidadPendiente]);
+            }
+
+            $prestamo->update([
+                'estado' => 'ANULADO',
+                'prestado' => false,
+                'observacion' => trim(($prestamo->observacion ? $prestamo->observacion . ' | ' : '') . 'Anulado por operador'),
+            ]);
+
+            if ($prestamo->venta_id && $prestamo->venta) {
+                $venta = $prestamo->venta;
+                if ($venta->estado !== 'ANULADA') {
+                    $venta->update(['estado' => 'ANULADA']);
+                    $venta->detalles()->update(['estado' => false]);
+                }
+            }
+
+            return $this->withResumen($prestamo->fresh(['cliente', 'inventario', 'venta', 'retornos.user']));
         });
     }
 

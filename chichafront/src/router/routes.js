@@ -27,12 +27,7 @@ import Contable from "pages/Contable";
 import Sale from "pages/Sale";
 import Almacen2 from "pages/Almacen2.vue";
 import Almacen3 from "pages/Almacen3.vue";
-// <<<<<<< HEAD
-// import User from "pages/User";
-// =======
-// import Usuario from "pages/Usuario";
-// import Gasto from "pages/Gasto";
-// >>>>>>> a64c39b0b8007f2636b9bda84ee6276a638bee19
+
 
 const routes = [
   {
@@ -70,13 +65,6 @@ const routes = [
       { path: 'almacen3', component: Almacen3,meta: {requiresAuth: true} },
       { path: 'contable', component: Contable,meta: {requiresAuth: true} },
       { path: 'sale/:type', component: Sale,meta: {requiresAuth: true} },
-
-// <<<<<<< HEAD
-//       { path: 'user', component: User,meta: {requiresAuth: true} },
-// =======
-//       { path: 'usuario', component: Usuario,meta: {requiresAuth: true} },
-//       { path: 'gasto', component: Gasto,meta: {requiresAuth: true} },
-// >>>>>>> a64c39b0b8007f2636b9bda84ee6276a638bee19
     ]
   },
 

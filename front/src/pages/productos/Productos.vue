@@ -9,9 +9,21 @@
           </div>
         </div>
         <q-space />
-        <q-input v-model="filter" label="Buscar" dense outlined debounce="250" style="width: 280px">
+        <q-input
+          v-if="!reorderMode"
+          v-model="filter"
+          label="Buscar"
+          dense
+          outlined
+          debounce="250"
+          style="width: 280px"
+        >
           <template #append><q-icon name="search" /></template>
         </q-input>
+        <div v-else class="row items-center q-gutter-xs">
+          <q-icon name="info" color="orange" />
+          <span class="text-caption text-orange-9 text-weight-medium">Arrastra las filas para reordenar</span>
+        </div>
       </q-card-section>
     </q-card>
 
@@ -52,42 +64,84 @@
     </div>
 
     <q-table
+      ref="productosTable"
       :rows="productos"
-      :columns="columns"
+      :columns="columnsEffective"
       row-key="id"
       dense
       flat
       bordered
       wrap-cells
-      :filter="filter"
-      v-model:pagination="pagination"
-      :rows-per-page-options="[10, 25, 50, 100]"
+      :filter="reorderMode ? '' : filter"
+      v-model:pagination="paginationEffective"
+      :rows-per-page-options="reorderMode ? [0] : [10, 25, 50, 100]"
       loading-label="Cargando..."
       no-data-label="Sin registros"
     >
       <template #top-right>
-        <q-btn
-          color="positive"
-          label="Nuevo"
-          icon="add_circle_outline"
-          no-caps
-          class="q-mr-sm"
-          :loading="loading"
-          @click="productoNuevo"
-        />
-        <q-btn
-          color="primary"
-          label="Actualizar"
-          icon="refresh"
-          no-caps
-          :loading="loading"
-          @click="productosGet"
-        />
+        <template v-if="!reorderMode">
+          <q-btn
+            color="positive"
+            label="Nuevo"
+            icon="add_circle_outline"
+            no-caps
+            class="q-mr-sm"
+            :loading="loading"
+            @click="productoNuevo"
+          />
+          <q-btn
+            color="orange"
+            label="Reordenar"
+            icon="swap_vert"
+            no-caps
+            class="q-mr-sm"
+            @click="activarReorden"
+          />
+          <q-btn
+            color="primary"
+            label="Actualizar"
+            icon="refresh"
+            no-caps
+            :loading="loading"
+            @click="productosGet"
+          />
+        </template>
+        <template v-else>
+          <q-btn
+            color="positive"
+            label="Guardar orden"
+            icon="save"
+            no-caps
+            class="q-mr-sm"
+            :loading="savingOrden"
+            @click="guardarOrden"
+          />
+          <q-btn
+            color="grey-7"
+            label="Cancelar"
+            icon="close"
+            no-caps
+            flat
+            @click="cancelarReorden"
+          />
+        </template>
+      </template>
+
+      <!-- Celda del handle de arrastre -->
+      <template #body-cell-drag="props">
+        <q-td :props="props" class="text-center" style="width: 36px; padding: 0 6px;">
+          <q-icon
+            name="drag_indicator"
+            class="drag-handle"
+            size="sm"
+            color="grey-5"
+          />
+        </q-td>
       </template>
 
       <template #body-cell-actions="props">
         <q-td :props="props" class="text-left">
-          <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px">
+          <q-btn-dropdown dense color="primary" label="Opciones" no-caps size="10px" :disable="reorderMode">
             <q-list dense>
               <q-item clickable v-close-popup @click="productoEditar(props.row)">
                 <q-item-section avatar><q-icon name="edit" /></q-item-section>
@@ -129,6 +183,18 @@
           <q-chip dense :color="props.row.estado ? 'positive' : 'grey-7'" text-color="white">
             {{ props.row.estado ? 'Activo' : 'Inactivo' }}
           </q-chip>
+        </q-td>
+      </template>
+
+      <template #body-cell-orden="props">
+        <q-td :props="props" class="text-center">
+          <q-badge
+            :color="reorderMode ? 'orange' : 'grey-5'"
+            text-color="white"
+            class="text-weight-bold"
+          >
+            {{ props.row.orden }}
+          </q-badge>
         </q-td>
       </template>
     </q-table>
@@ -215,8 +281,6 @@
 
         <q-card-section>
           <div class="row q-col-gutter-md items-center">
-
-            <!-- Imagen actual -->
             <div class="col-5 text-center">
               <div class="text-caption text-grey-6 q-mb-xs">Imagen actual</div>
               <div class="img-preview-box">
@@ -234,7 +298,6 @@
               </div>
             </div>
 
-            <!-- Zona drag & drop / paste -->
             <div class="col-7">
               <div class="text-caption text-grey-6 q-mb-xs">Soltar o pegar nueva imagen</div>
               <div
@@ -278,11 +341,14 @@
 </template>
 
 <script>
+import Sortable from 'sortablejs'
+
 export default {
   name: 'ProductosPage',
   data () {
     return {
       productos: [],
+      productosSnapshot: [],
       producto: {},
       dialogProducto: false,
       loading: false,
@@ -295,6 +361,9 @@ export default {
         sortBy: 'orden',
         descending: false
       },
+      reorderMode: false,
+      savingOrden: false,
+      sortableInstance: null,
       dialogImagen: false,
       imgProductoSel: null,
       loadingImagen: false,
@@ -310,7 +379,7 @@ export default {
         { name: 'nombre', label: 'Nombre', align: 'left', field: 'nombre' },
         { name: 'grupo', label: 'Grupo', align: 'left', field: 'grupo' },
         { name: 'precio', label: 'Precio', align: 'left', field: 'precio' },
-        { name: 'orden', label: 'Orden', align: 'left', field: 'orden' },
+        { name: 'orden', label: 'Orden', align: 'center', field: 'orden' },
         { name: 'color', label: 'Color', align: 'left', field: 'color' },
         { name: 'estado', label: 'Estado', align: 'left', field: 'estado' }
       ]
@@ -330,10 +399,29 @@ export default {
       const total = this.productos.length
       const activos = this.productos.filter(p => !!p.estado).length
       return { total, activos, inactivos: total - activos }
+    },
+    columnsEffective () {
+      if (this.reorderMode) {
+        return [
+          { name: 'drag', label: '', align: 'center', style: 'width: 36px' },
+          ...this.columns
+        ]
+      }
+      return this.columns
+    },
+    paginationEffective: {
+      get () {
+        if (this.reorderMode) return { page: 1, rowsPerPage: 0 }
+        return this.pagination
+      },
+      set (val) {
+        if (!this.reorderMode) this.pagination = val
+      }
     }
   },
   watch: {
     '$route.params.tipo' () {
+      this.cancelarReorden()
       this.productosGet()
     },
     fotoFile (file) {
@@ -347,6 +435,9 @@ export default {
   mounted () {
     this.productosGet()
   },
+  beforeUnmount () {
+    this.destroySortable()
+  },
   methods: {
     req (v) {
       return !!v || 'Campo requerido'
@@ -354,13 +445,67 @@ export default {
     imgProducto (foto) {
       return `${this.$url}../../images/productos/${foto}`
     },
+    activarReorden () {
+      this.productosSnapshot = this.productos.map(p => ({ ...p }))
+      this.reorderMode = true
+      this.$nextTick(() => this.initSortable())
+    },
+    cancelarReorden () {
+      if (this.productosSnapshot.length) {
+        this.productos = this.productosSnapshot.map(p => ({ ...p }))
+      }
+      this.reorderMode = false
+      this.destroySortable()
+    },
+    initSortable () {
+      const tableEl = this.$refs.productosTable?.$el
+      if (!tableEl) return
+      const tbody = tableEl.querySelector('tbody')
+      if (!tbody) return
+
+      this.sortableInstance = Sortable.create(tbody, {
+        handle: '.drag-handle',
+        animation: 180,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: (evt) => {
+          const { oldIndex, newIndex } = evt
+          if (oldIndex === newIndex) return
+          const moved = this.productos.splice(oldIndex, 1)[0]
+          this.productos.splice(newIndex, 0, moved)
+          this.productos.forEach((p, i) => { p.orden = i + 1 })
+        }
+      })
+    },
+    destroySortable () {
+      if (this.sortableInstance) {
+        this.sortableInstance.destroy()
+        this.sortableInstance = null
+      }
+    },
+    async guardarOrden () {
+      this.savingOrden = true
+      try {
+        await this.$axios.post('productos/reordenar', {
+          items: this.productos.map(p => ({ id: p.id, orden: p.orden }))
+        })
+        this.$alert.success('Orden guardado correctamente')
+        this.reorderMode = false
+        this.destroySortable()
+        this.productosSnapshot = []
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo guardar el orden')
+      } finally {
+        this.savingOrden = false
+      }
+    },
     productoNuevo () {
       this.producto = {
         nombre: '',
         precio: 0,
         observacion: '',
         grupo: 'chicha',
-        orden: 1,
+        orden: this.productos.length + 1,
         color: '#ffffff',
         estado: true,
         fotografia: null
@@ -512,14 +657,35 @@ export default {
   background: #c8e6c9;
   border-color: #66bb6a;
 }
-</style>
 
-<style scoped>
 .color-box {
   width: 18px;
   height: 18px;
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, .2);
+}
+
+/* ── Drag handle ──────────────────────────────────── */
+.drag-handle {
+  cursor: grab;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.drag-handle:hover {
+  opacity: 1;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ── Sortable visual feedback ─────────────────────── */
+.sortable-ghost {
+  opacity: 0.35;
+  background: #e3f2fd !important;
+}
+.sortable-chosen {
+  background: #fff9c4 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 /* ── Cambiar imagen ─────────────────────────────── */

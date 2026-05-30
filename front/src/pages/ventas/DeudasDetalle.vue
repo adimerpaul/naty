@@ -75,6 +75,10 @@
                 <q-item-section avatar><q-icon name="payments" color="positive" /></q-item-section>
                 <q-item-section>Amortizar</q-item-section>
               </q-item>
+              <q-item clickable v-close-popup @click="imprimir(props.row)">
+                <q-item-section avatar><q-icon name="print" color="teal" /></q-item-section>
+                <q-item-section>Imprimir</q-item-section>
+              </q-item>
               <q-item clickable v-close-popup @click="ocultar(props.row)">
                 <q-item-section avatar><q-icon name="visibility_off" color="grey-8" /></q-item-section>
                 <q-item-section>Ocultar</q-item-section>
@@ -93,6 +97,7 @@
         <q-card-section class="row items-center q-pb-none">
           <div class="text-subtitle1 text-weight-bold">Deuda venta #{{ rowSel?.id }}</div>
           <q-space />
+          <q-btn flat round dense icon="print" color="teal" @click="imprimirSel" class="q-mr-sm" />
           <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
         <q-card-section>
@@ -137,20 +142,27 @@
         <q-card-section>
           <q-form @submit.prevent="guardarAmortizar">
             <q-input v-model="amortForm.cliente" dense outlined readonly label="Cliente" class="q-mb-sm" />
-            <q-input v-model.number="amortForm.monto" dense outlined type="number" min="0.01" step="0.01" label="Monto a amortizar" :rules="[req]" class="q-mb-sm" />
-            <q-select
-              v-model="amortForm.metodo"
-              dense
-              outlined
-              emit-value
-              map-options
-              :options="[
-                { label: 'Efectivo', value: 'efectivo' },
-                { label: 'QR', value: 'qr' }
-              ]"
-              label="Metodo"
-              class="q-mb-sm"
-            />
+            <div class="row q-col-gutter-sm q-mb-sm">
+              <div class="col-6">
+                <q-input
+                  v-model.number="amortForm.monto_efectivo"
+                  dense outlined type="number" min="0" step="0.01"
+                  label="Efectivo (Bs)"
+                />
+              </div>
+              <div class="col-6">
+                <q-input
+                  v-model.number="amortForm.monto_qr"
+                  dense outlined type="number" min="0" step="0.01"
+                  label="QR (Bs)"
+                />
+              </div>
+            </div>
+            <div class="row items-center q-mb-sm q-px-xs">
+              <span class="text-caption text-grey-7">Total a amortizar:</span>
+              <q-space />
+              <span class="text-weight-bold text-primary">{{ money((amortForm.monto_efectivo || 0) + (amortForm.monto_qr || 0)) }} Bs</span>
+            </div>
             <q-input v-model="amortForm.observacion" dense outlined label="Observacion" class="q-mb-md" />
             <div class="row justify-end q-gutter-sm">
               <q-btn flat no-caps color="negative" label="Cancelar" v-close-popup />
@@ -164,10 +176,13 @@
 </template>
 
 <script>
+import { Imprimir } from 'src/addons/Imprimir'
+
 export default {
   name: 'DeudasPage',
   data () {
     const today = new Date().toISOString().slice(0, 10)
+    const startOfYear = `${new Date().getFullYear()}-01-01`
     return {
       loading: false,
       loadingAmort: false,
@@ -175,9 +190,9 @@ export default {
       dialogAmortizar: false,
       rows: [],
       rowSel: null,
-      amortForm: { id: null, cliente: '', monto: null, metodo: 'efectivo', observacion: '' },
+      amortForm: { id: null, cliente: '', monto_efectivo: null, monto_qr: null, observacion: '' },
       pagination: { page: 1, rowsPerPage: 25, sortBy: 'saldo_pendiente', descending: true },
-      filters: { date_from: today, date_to: today, one_day: true, search: '', sort_deuda: 'desc' },
+      filters: { date_from: startOfYear, date_to: today, one_day: false, search: '', sort_deuda: 'desc' },
       columns: [
         { name: 'actions', label: '', align: 'left' },
         { name: 'id', label: 'Venta', field: 'id', align: 'left' },
@@ -260,28 +275,45 @@ export default {
       this.amortForm = {
         id: row.id,
         cliente: row.cliente_nombre || '-',
-        monto: Number(row.saldo_pendiente || 0),
-        metodo: 'efectivo',
+        monto_efectivo: Number(row.saldo_pendiente || 0),
+        monto_qr: null,
         observacion: ''
       }
       this.dialogAmortizar = true
     },
     async guardarAmortizar () {
+      const total = Number(this.amortForm.monto_efectivo || 0) + Number(this.amortForm.monto_qr || 0)
+      if (total <= 0) {
+        this.$alert.error('Debe ingresar al menos un monto')
+        return
+      }
       this.loadingAmort = true
       try {
-        await this.$axios.post(`ventas/${this.amortForm.id}/amortizar`, {
-          monto: this.amortForm.monto,
-          metodo: this.amortForm.metodo,
+        const res = await this.$axios.post(`ventas/${this.amortForm.id}/amortizar`, {
+          monto_efectivo: this.amortForm.monto_efectivo || 0,
+          monto_qr: this.amortForm.monto_qr || 0,
           observacion: this.amortForm.observacion
         })
         this.$alert.success('Amortizacion registrada')
         this.dialogAmortizar = false
         this.cargar()
+        Imprimir.deudaTicket(res.data)
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo amortizar')
       } finally {
         this.loadingAmort = false
       }
+    },
+    async imprimir (row) {
+      try {
+        const res = await this.$axios.get(`ventas/${row.id}`)
+        Imprimir.deudaTicket(res.data)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar la deuda')
+      }
+    },
+    imprimirSel () {
+      if (this.rowSel) Imprimir.deudaTicket(this.rowSel)
     },
     ocultar (row) {
       this.$alert.dialog('Ocultar esta deuda de la lista?')

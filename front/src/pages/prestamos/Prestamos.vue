@@ -29,36 +29,20 @@
     </q-card>
 
     <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-sm-6 col-md-3">
+      <div class="col-12 col-sm-6">
         <q-card flat bordered>
           <q-card-section>
-            <div class="text-caption text-grey-7">Vendido material</div>
-            <div class="text-h6 text-weight-bold">{{ money(cajaResumen.vendidos_monto) }} Bs</div>
+            <div class="text-caption text-grey-7">Dinero del cliente (pendiente cobro)</div>
+            <div class="text-h5 text-weight-bold text-orange-8">{{ money(cajaResumen.pendiente_monto) }} Bs</div>
           </q-card-section>
         </q-card>
       </div>
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card flat bordered>
-          <q-card-section>
-            <div class="text-caption text-grey-7">Prestamos material</div>
-            <div class="text-h6 text-weight-bold">{{ money(cajaResumen.prestamos_monto) }} Bs</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card flat bordered>
-          <q-card-section>
-            <div class="text-caption text-grey-7">Pendiente cobro</div>
-            <div class="text-h6 text-weight-bold text-orange-8">{{ money(cajaResumen.pendiente_monto) }} Bs</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-sm-6 col-md-3">
+      <div class="col-12 col-sm-6">
         <q-card flat bordered>
           <q-card-section class="row items-center">
             <div>
               <div class="text-caption text-grey-7">Caja prestamos</div>
-              <div class="text-h6 text-weight-bold text-primary">{{ money(cajaResumen.caja_total) }} Bs</div>
+              <div class="text-h5 text-weight-bold text-primary">{{ money(cajaResumen.caja_total) }} Bs</div>
             </div>
             <q-space />
             <q-btn dense flat round icon="history" color="primary" @click="abrirCajaHistorial" />
@@ -111,6 +95,10 @@
                   <q-item-section avatar><q-icon name="money_off" color="negative" /></q-item-section>
                   <q-item-section>Dar de baja</q-item-section>
                 </q-item>
+                <q-item clickable v-close-popup :disable="!puedeAnular(props.row)" @click="anularPrestamo(props.row)">
+                  <q-item-section avatar><q-icon name="cancel" color="deep-orange" /></q-item-section>
+                  <q-item-section>Anular venta</q-item-section>
+                </q-item>
               </q-list>
             </q-btn-dropdown>
           </q-td>
@@ -145,20 +133,26 @@
         </q-card-section>
         <q-card-section>
           <q-form @submit.prevent="guardarPrestamo">
-            <q-select
-              v-model="pres.cliente_id"
-              dense
-              outlined
-              emit-value
-              map-options
-              use-input
-              input-debounce="200"
-              :options="clientesFiltrados"
-              label="Cliente"
-              :rules="[req]"
-              class="q-mb-sm"
-              @filter="filtrarClientes"
-            />
+            <div class="row q-col-gutter-sm q-mb-sm">
+              <div class="col-12 col-md-4">
+                <q-input v-model="pres.fecha" dense outlined type="date" label="Fecha del préstamo" :rules="[req]" />
+              </div>
+              <div class="col-12 col-md-8">
+                <q-select
+                  v-model="pres.cliente_id"
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  use-input
+                  input-debounce="200"
+                  :options="clientesFiltrados"
+                  label="Cliente"
+                  :rules="[req]"
+                  @filter="filtrarClientes"
+                />
+              </div>
+            </div>
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-4">
                 <q-select
@@ -178,7 +172,7 @@
                 <q-input v-model.number="pres.cantidad" dense outlined type="number" min="1" label="Cantidad" />
               </div>
               <div class="col-12 col-md-4">
-                <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />
+<!--                <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />-->
               </div>
               <div class="col-12 col-md-8">
                 <q-select
@@ -293,7 +287,7 @@
                 <q-input v-model.number="retorno.cantidad" dense outlined type="number" min="0" label="Cantidad" />
               </div>
               <div class="col-12 col-md-4">
-                <q-input v-model.number="retorno.efectivo" dense outlined type="number" min="0" step="0.01" label="Fisico retornado" />
+                <q-input v-model.number="retorno.efectivo" dense outlined type="number" min="0" step="0.01" label="Efectivo en retorno" />
               </div>
               <div class="col-12">
                 <q-input v-model="retorno.observacion" dense outlined label="Observacion" />
@@ -488,7 +482,8 @@ export default {
         efectivo_manual: false,
         metodo_pago: 'efectivo',
         fisico: '',
-        observacion: ''
+        observacion: '',
+        fecha: new Date().toISOString().slice(0, 10)
       },
       colsPrestamos: [
         { name: 'actions', label: '', align: 'left' },
@@ -506,6 +501,7 @@ export default {
       ],
       colsPrestamoItems: [
         { name: 'actions', label: '', align: 'left' },
+        { name: 'fecha', label: 'Fecha', field: 'fecha', align: 'left' },
         { name: 'inventario_nombre', label: 'Inventario', field: 'inventario_nombre', align: 'left' },
         { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
         { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
@@ -587,7 +583,8 @@ export default {
         efectivo_manual: false,
         metodo_pago: 'efectivo',
         fisico: '',
-        observacion: ''
+        observacion: '',
+        fecha: new Date().toISOString().slice(0, 10)
       }
     },
     req (v) { return !!v || 'Campo requerido' },
@@ -609,6 +606,10 @@ export default {
     puedeDarBaja (row) {
       if (row.tipo === 'venta') return false
       return !['RETORNADO', 'ANULADO', 'BAJA'].includes(row.estado)
+    },
+    puedeAnular (row) {
+      if (row.tipo !== 'venta') return false
+      return row.estado !== 'ANULADO'
     },
     async cargarAll () {
       this.loading = true
@@ -813,7 +814,8 @@ export default {
         tipo: this.pres.tipo,
         efectivo: Number(this.pres.efectivo || 0),
         metodo_pago: this.pres.metodo_pago || 'efectivo',
-        observacion: this.pres.observacion || ''
+        observacion: this.pres.observacion || '',
+        fecha: this.pres.fecha
       })
 
       const clienteId = this.pres.cliente_id
@@ -832,8 +834,9 @@ export default {
       }
       this.loadingGuardar = true
       try {
+        const creados = []
         for (const item of this.prestamoItems) {
-          await this.$axios.post('prestamos', {
+          const res = await this.$axios.post('prestamos', {
             cliente_id: item.cliente_id,
             inventario_id: item.inventario_id,
             cantidad: item.cantidad,
@@ -842,13 +845,18 @@ export default {
             metodo_pago: item.metodo_pago,
             fisico: '',
             observacion: item.observacion,
-            tipo_venta: this.tipoCliente
+            tipo_venta: this.tipoCliente,
+            fecha: item.fecha
           })
+          creados.push(res.data)
         }
         this.dialogPrestamo = false
         this.prestamoItems = []
         await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
         this.$alert.success('Registros guardados')
+        for (const prestamo of creados) {
+          Imprimir.prestamoMaterialTicket(prestamo)
+        }
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo guardar')
       } finally {
@@ -873,10 +881,11 @@ export default {
       if (!this.retornoRow) return
       this.loadingRetorno = true
       try {
-        await this.$axios.post(`prestamos/${this.retornoRow.id}/retorno-parcial`, this.retorno)
+        const res = await this.$axios.post(`prestamos/${this.retornoRow.id}/retorno-parcial`, this.retorno)
         this.dialogRetorno = false
         await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
         this.$alert.success('Retorno parcial registrado')
+        Imprimir.prestamoMaterialTicket(res.data)
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo registrar retorno parcial')
       } finally {
@@ -887,9 +896,10 @@ export default {
       this.$alert.dialog('Seguro que va a retornar todo?')
         .onOk(async () => {
         try {
-          await this.$axios.post(`prestamos/${row.id}/retornar`)
+          const res = await this.$axios.post(`prestamos/${row.id}/retornar`)
           await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
           this.$alert.success('Prestamo retornado completo')
+          Imprimir.prestamoMaterialTicket(res.data)
         } catch (e) {
           this.$alert.error(e.response?.data?.message || 'No se pudo retornar el prestamo')
         }
@@ -899,15 +909,28 @@ export default {
       this.$alert.dialog('Desea dar de baja este prestamo? El material no volvera al inventario.')
         .onOk(async () => {
           try {
-            await this.$axios.post(`prestamos/${row.id}/dar-baja`, {
+            const res = await this.$axios.post(`prestamos/${row.id}/dar-baja`, {
               monto: Number(row.monto_pendiente ?? row.efectivo_actual ?? 0),
               observacion: 'Baja desde prestamos'
             })
             await Promise.all([this.cargarPrestamos(), this.cargarCajaResumen()])
             if (this.dialogCajaHistorial) await this.cargarCajaMovimientos()
             this.$alert.success('Prestamo dado de baja')
+            Imprimir.prestamoMaterialTicket(res.data)
           } catch (e) {
             this.$alert.error(e.response?.data?.message || 'No se pudo dar de baja')
+          }
+        })
+    },
+    anularPrestamo (row) {
+      this.$alert.dialog('¿Desea anular esta venta? Se revertirá el inventario y la venta asociada.')
+        .onOk(async () => {
+          try {
+            await this.$axios.post(`prestamos/${row.id}/anular`)
+            await Promise.all([this.cargarPrestamos(), this.cargarInventarios(), this.cargarCajaResumen()])
+            this.$alert.success('Anulado correctamente')
+          } catch (e) {
+            this.$alert.error(e.response?.data?.message || 'No se pudo anular')
           }
         })
     },

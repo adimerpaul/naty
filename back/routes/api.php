@@ -53,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/productos', [ProductoController::class, 'index']);
     Route::post('/productos', [ProductoController::class, 'store']);
+    Route::post('/productos/reordenar', [ProductoController::class, 'reordenar']);
     Route::put('/productos/{producto}', [ProductoController::class, 'update']);
     Route::delete('/productos/{producto}', [ProductoController::class, 'destroy']);
 
@@ -84,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/prestamos/caja/movimientos', [PrestamoController::class, 'cajaMovimientos']);
     Route::post('/prestamos/caja/movimientos', [PrestamoController::class, 'registrarCajaMovimiento']);
     Route::post('/prestamos', [PrestamoController::class, 'store']);
+    Route::post('/prestamos/{prestamo}/anular', [PrestamoController::class, 'anular']);
     Route::post('/prestamos/{prestamo}/dar-baja', [PrestamoController::class, 'darBaja']);
     Route::post('/prestamos/{prestamo}/retorno-parcial', [PrestamoController::class, 'retornoParcial']);
     Route::post('/prestamos/{prestamo}/retornar', [PrestamoController::class, 'retornar']);

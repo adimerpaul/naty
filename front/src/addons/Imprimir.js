@@ -1024,28 +1024,28 @@ Oruro</div>
           width: 300px;
           font-family: "Times New Roman", serif;
           color: #111;
-          font-size: 14px;
-          line-height: 1.15;
+          font-size: 11px;
+          line-height: 1.1;
         }
         .despacho-ticket .top-title {
           display: flex;
           justify-content: flex-end;
           gap: 28px;
-          font-size: 16px;
-          margin-bottom: 8px;
+          font-size: 12px;
+          margin-bottom: 4px;
         }
         .despacho-ticket .row-line {
-          font-size: 15px;
+          font-size: 11px;
         }
         .despacho-ticket .dash {
           border: 0;
           border-top: 1px dashed #222;
-          margin: 8px 0;
+          margin: 4px 0;
         }
         .despacho-ticket .tear {
           text-align: center;
           letter-spacing: 2px;
-          margin: 12px 0 8px;
+          margin: 6px 0 4px;
           font-weight: bold;
           overflow: hidden;
           white-space: nowrap;
@@ -1055,22 +1055,23 @@ Oruro</div>
           border-collapse: collapse;
         }
         .despacho-ticket th {
-          font-size: 18px;
+          font-size: 11px;
           font-weight: bold;
           text-align: left;
-          padding: 2px 0;
+          padding: 0;
         }
         .despacho-ticket td {
-          font-size: 18px;
-          padding: 2px 0;
+          font-size: 11px;
+          padding: 0;
           vertical-align: top;
         }
         .despacho-ticket .qty {
-          width: 38px;
+          width: 28px;
         }
         .despacho-ticket .prod {
           width: 180px;
           text-align: center;
+          text-transform: lowercase;
         }
         .despacho-ticket .num {
           width: 44px;
@@ -1080,34 +1081,35 @@ Oruro</div>
           width: 118px;
           text-align: center;
           word-break: break-word;
+          text-transform: lowercase;
         }
         .despacho-ticket .tipo {
-          width: 84px;
+          width: 74px;
           text-align: right;
         }
         .despacho-ticket .section-title {
           text-align: center;
-          font-size: 15px;
-          margin-bottom: 4px;
+          font-size: 11px;
+          margin-bottom: 2px;
         }
         .despacho-ticket .copy-title {
           text-align: center;
-          font-size: 16px;
-          margin-bottom: 4px;
+          font-size: 12px;
+          margin-bottom: 2px;
         }
         .despacho-ticket .strong {
-          font-size: 18px;
+          font-size: 12px;
           font-weight: bold;
         }
         .despacho-ticket .firma {
-          margin-top: 58px;
+          margin-top: 40px;
           text-align: center;
-          font-size: 18px;
+          font-size: 12px;
           font-weight: bold;
         }
         .despacho-ticket .terms {
-          margin-top: 10px;
-          font-size: 20px;
+          margin-top: 6px;
+          font-size: 11px;
           font-weight: bold;
         }
       </style>
@@ -1206,7 +1208,7 @@ Oruro</div>
         <div style="margin-top:8px;"><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
         <div><b>Tel 1:</b> ${venta.hoja_telefono_1 || venta.cliente_telefono || '-'}</div>
         <div><b>Tel 2:</b> ${venta.hoja_telefono_2 || '-'}</div>
-        <div><b>Direccion:</b> ${venta.hoja_direccion || venta.cliente_direccion || '-'}</div>
+        <div><b>Direccion:</b> ${venta.hoja_direccion || venta.cliente_direccion || '-'} &nbsp; <b>Turno:</b> ${venta.hoja_turno || '-'}</div>
         <div><b>Hora:</b> ${hora}</div>
         <div><b>Envases:</b> ${venta.hoja_envases || '-'}</div>
         <hr>
@@ -1340,6 +1342,58 @@ Oruro</div>
       </div>
     `;
     this.printTicketHtml(html);
+  }
+
+  static deudaTicket (venta) {
+    const S = v => (v ?? '').toString()
+    const money = n => Number(n || 0).toFixed(2)
+    const formatDate = v => {
+      if (!v) return '-'
+      const parts = S(v).split('T')[0].split('-')
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : S(v)
+    }
+    const pagos = venta.pagos || []
+    const totalPagado = venta.total_pagado ?? pagos.filter(p => p.estado === 'PAGADO').reduce((a, b) => a + Number(b.monto || 0), 0)
+    const saldoPendiente = venta.saldo_pendiente ?? pagos.filter(p => p.estado === 'PENDIENTE').reduce((a, b) => a + Number(b.monto || 0), 0)
+    const pagosHtml = pagos.map(p => `
+      <tr>
+        <td>${p.nro_cuota ?? '-'}</td>
+        <td style="text-align:right;">${money(p.monto)}</td>
+        <td>${S(p.metodo || '-')}</td>
+        <td style="font-size:10px;">${S(p.estado || '-')}</td>
+        <td style="font-size:10px;">${formatDate(p.fecha_pago)}</td>
+      </tr>
+    `).join('')
+    const html = `
+      <div style="width:300px;font-family:'Times New Roman',serif;font-size:12px;line-height:1.2;color:#111;">
+        <div style="text-align:center;font-size:15px;font-weight:bold;">Comprobante de Pago</div>
+        <div style="text-align:center;">Venta #${venta.id || ''}</div>
+        <hr style="border:0;border-top:1px dashed #222;margin:6px 0;">
+        <div><b>Fecha:</b> ${formatDate(venta.fecha_venta || venta.created_at)}</div>
+        <div><b>Cliente:</b> ${S(venta.cliente_nombre || '-')}</div>
+        <div><b>Telefono:</b> ${S(venta.cliente_telefono || '-')}</div>
+        <hr style="border:0;border-top:1px dashed #222;margin:6px 0;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead>
+            <tr style="font-weight:bold;">
+              <th style="text-align:left;">Cta</th>
+              <th style="text-align:right;">Monto</th>
+              <th>Metodo</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>${pagosHtml || '<tr><td colspan="5">Sin pagos</td></tr>'}</tbody>
+        </table>
+        <hr style="border:0;border-top:1px dashed #222;margin:6px 0;">
+        <div style="display:flex;justify-content:space-between;"><span><b>Total:</b></span><span>${money(venta.total)} Bs</span></div>
+        <div style="display:flex;justify-content:space-between;"><span><b>Pagado:</b></span><span>${money(totalPagado)} Bs</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;${Number(saldoPendiente) > 0 ? 'color:#b45309;' : 'color:#166534;'}">
+          <span>Saldo pendiente:</span><span>${money(saldoPendiente)} Bs</span>
+        </div>
+      </div>
+    `
+    this.printTicketHtml(html)
   }
 
   static movimientoCaja(movimiento, cajaNombre = 'Caja') {

@@ -141,6 +141,8 @@ class VentaController extends Controller
             'fecha_venta' => 'nullable|date',
             'facturado' => 'nullable|boolean',
             'pago_inicial' => 'nullable|numeric|min:0',
+            'monto_efectivo' => 'nullable|numeric|min:0',
+            'monto_qr' => 'nullable|numeric|min:0',
             'metodo_pago' => ['nullable', Rule::in(['efectivo', 'qr'])],
             'concepto' => 'nullable|string|max:255',
             'monto' => 'nullable|integer|min:1',
@@ -233,16 +235,7 @@ class VentaController extends Controller
                 $venta->update(['total' => round($total, 2)]);
 
                 if ($validated['tipo_pago'] === 'contado') {
-                    Pago::create([
-                        'venta_id' => $venta->id,
-                        'user_id' => $request->user()->id ?? null,
-                        'nro_cuota' => 1,
-                        'monto' => round($total, 2),
-                        'fecha_programada' => now()->toDateString(),
-                        'fecha_pago' => now(),
-                        'metodo' => $validated['metodo_pago'] ?? 'efectivo',
-                        'estado' => 'PAGADO',
-                    ]);
+                    $this->crearPagosContado($venta, $request, $validated, round($total, 2));
                 } else {
                     $this->crearPlanCuotas($venta, $request, $validated, round($total, 2));
                 }
@@ -333,62 +326,81 @@ class VentaController extends Controller
     public function amortizar(Request $request, Venta $venta)
     {
         $validated = $request->validate([
-            'monto' => 'required|numeric|min:0.01',
-            'metodo' => ['nullable', Rule::in(['efectivo', 'qr'])],
-            'observacion' => 'nullable|string|max:255',
+            'monto_efectivo' => 'nullable|numeric|min:0',
+            'monto_qr'       => 'nullable|numeric|min:0',
+            'observacion'    => 'nullable|string|max:255',
         ]);
+
+        $montoEfectivo = round((float) ($validated['monto_efectivo'] ?? 0), 2);
+        $montoQr       = round((float) ($validated['monto_qr'] ?? 0), 2);
+
+        if ($montoEfectivo + $montoQr <= 0) {
+            return response()->json(['message' => 'Debe ingresar al menos un monto'], 422);
+        }
 
         if ($venta->estado === 'ANULADA') {
             return response()->json(['message' => 'No se puede amortizar una venta anulada'], 422);
         }
 
-        return DB::transaction(function () use ($validated, $venta, $request) {
+        return DB::transaction(function () use ($validated, $venta, $request, $montoEfectivo, $montoQr) {
             $pendientes = $venta->pagos()->where('estado', 'PENDIENTE')->orderBy('id')->get();
             $deuda = (float) $pendientes->sum('monto');
             if ($deuda <= 0) {
                 return response()->json(['message' => 'La venta no tiene deuda pendiente'], 422);
             }
 
-            $abono = min((float) $validated['monto'], $deuda);
-            $restante = $abono;
-            foreach ($pendientes as $pago) {
-                if ($restante <= 0) {
-                    break;
-                }
-                $montoPago = (float) $pago->monto;
-                if ($montoPago <= $restante) {
-                    $pago->update([
-                        'user_id' => $request->user()->id ?? null,
-                        'fecha_pago' => now(),
-                        'metodo' => $validated['metodo'] ?? 'efectivo',
-                        'observacion' => $validated['observacion'] ?: 'Amortizacion',
-                        'estado' => 'PAGADO',
-                    ]);
-                    $restante -= $montoPago;
-                } else {
-                    $pago->update([
-                        'monto' => round($montoPago - $restante, 2),
-                        'observacion' => 'Saldo pendiente luego de amortizacion',
-                    ]);
-                    Pago::create([
-                        'venta_id' => $venta->id,
-                        'user_id' => $request->user()->id ?? null,
-                        'nro_cuota' => ($pendientes->max('nro_cuota') ?? 0) + 1,
-                        'monto' => round($restante, 2),
-                        'fecha_programada' => now()->toDateString(),
-                        'fecha_pago' => now(),
-                        'metodo' => $validated['metodo'] ?? 'efectivo',
-                        'estado' => 'PAGADO',
-                        'observacion' => $validated['observacion'] ?: 'Amortizacion parcial',
-                    ]);
-                    $restante = 0;
-                }
+            $obs = $validated['observacion'] ?? null;
+            $pagos = [];
+            if ($montoEfectivo > 0) $pagos[] = ['monto' => $montoEfectivo, 'metodo' => 'efectivo'];
+            if ($montoQr > 0)       $pagos[] = ['monto' => $montoQr,       'metodo' => 'qr'];
+
+            foreach ($pagos as $item) {
+                $this->aplicarAmortizacion($venta, $request, $item['monto'], $item['metodo'], $obs);
             }
 
             $venta->load(['pagos', 'detalles', 'user', 'caja']);
-
             return $this->withResumen($venta);
         });
+    }
+
+    private function aplicarAmortizacion(Venta $venta, Request $request, float $abono, string $metodo, ?string $obs): void
+    {
+        $pendientes = $venta->pagos()->where('estado', 'PENDIENTE')->orderBy('id')->get();
+        $deuda = (float) $pendientes->sum('monto');
+        if ($deuda <= 0 || $abono <= 0) return;
+
+        $restante = min($abono, $deuda);
+        foreach ($pendientes as $pago) {
+            if ($restante <= 0) break;
+            $montoPago = (float) $pago->monto;
+            if ($montoPago <= $restante) {
+                $pago->update([
+                    'user_id'    => $request->user()->id ?? null,
+                    'fecha_pago' => now(),
+                    'metodo'     => $metodo,
+                    'observacion'=> $obs ?: 'Amortizacion',
+                    'estado'     => 'PAGADO',
+                ]);
+                $restante -= $montoPago;
+            } else {
+                $pago->update([
+                    'monto'      => round($montoPago - $restante, 2),
+                    'observacion'=> 'Saldo pendiente luego de amortizacion',
+                ]);
+                Pago::create([
+                    'venta_id'         => $venta->id,
+                    'user_id'          => $request->user()->id ?? null,
+                    'nro_cuota'        => ($venta->pagos()->max('nro_cuota') ?? 0) + 1,
+                    'monto'            => round($restante, 2),
+                    'fecha_programada' => now()->toDateString(),
+                    'fecha_pago'       => now(),
+                    'metodo'           => $metodo,
+                    'estado'           => 'PAGADO',
+                    'observacion'      => $obs ?: 'Amortizacion parcial',
+                ]);
+                $restante = 0;
+            }
+        }
     }
 
     public function ocultarDeuda(Request $request, Venta $venta)
@@ -530,23 +542,61 @@ class VentaController extends Controller
         return response()->json(['message' => 'Venta anulada']);
     }
 
+    private function crearPagosContado(Venta $venta, Request $request, array $validated, float $total): void
+    {
+        $montoEfectivo = (float) ($validated['monto_efectivo'] ?? 0);
+        $montoQr = (float) ($validated['monto_qr'] ?? 0);
+        $userId = $request->user()->id ?? null;
+        $base = [
+            'venta_id' => $venta->id,
+            'user_id' => $userId,
+            'nro_cuota' => 1,
+            'fecha_programada' => now()->toDateString(),
+            'fecha_pago' => now(),
+            'estado' => 'PAGADO',
+        ];
+
+        if ($montoEfectivo > 0 || $montoQr === 0.0) {
+            Pago::create(array_merge($base, [
+                'monto' => round($montoEfectivo > 0 ? $montoEfectivo : $total, 2),
+                'metodo' => 'efectivo',
+            ]));
+        }
+        if ($montoQr > 0) {
+            Pago::create(array_merge($base, [
+                'monto' => round($montoQr, 2),
+                'metodo' => 'qr',
+            ]));
+        }
+    }
+
     private function crearPlanCuotas(Venta $venta, Request $request, array $validated, float $total): void
     {
-        $pagoInicial = (float) ($validated['pago_inicial'] ?? 0);
-        $pagoInicial = min(max($pagoInicial, 0), $total);
+        $montoEfectivo = (float) ($validated['monto_efectivo'] ?? 0);
+        $montoQr = (float) ($validated['monto_qr'] ?? 0);
+        $pagoInicial = min(max($montoEfectivo + $montoQr, 0), $total);
+        $userId = $request->user()->id ?? null;
+        $base = [
+            'venta_id' => $venta->id,
+            'user_id' => $userId,
+            'nro_cuota' => 0,
+            'fecha_programada' => now()->toDateString(),
+            'fecha_pago' => now(),
+            'estado' => 'PAGADO',
+            'observacion' => 'Pago inicial',
+        ];
 
-        if ($pagoInicial > 0) {
-            Pago::create([
-                'venta_id' => $venta->id,
-                'user_id' => $request->user()->id ?? null,
-                'nro_cuota' => 0,
-                'monto' => round($pagoInicial, 2),
-                'fecha_programada' => now()->toDateString(),
-                'fecha_pago' => now(),
-                'metodo' => $validated['metodo_pago'] ?? 'efectivo',
-                'estado' => 'PAGADO',
-                'observacion' => 'Pago inicial',
-            ]);
+        if ($montoEfectivo > 0) {
+            Pago::create(array_merge($base, [
+                'monto' => round($montoEfectivo, 2),
+                'metodo' => 'efectivo',
+            ]));
+        }
+        if ($montoQr > 0) {
+            Pago::create(array_merge($base, [
+                'monto' => round($montoQr, 2),
+                'metodo' => 'qr',
+            ]));
         }
 
         $saldo = round($total - $pagoInicial, 2);
@@ -560,7 +610,7 @@ class VentaController extends Controller
             'monto' => $saldo,
             'fecha_programada' => now()->addDays(30)->toDateString(),
             'estado' => 'PENDIENTE',
-            'metodo' => $validated['metodo_pago'] ?? 'credito',
+            'metodo' => 'credito',
             'observacion' => 'Saldo pendiente por credito',
         ]);
     }
@@ -582,7 +632,10 @@ class VentaController extends Controller
     private function montoInicialQueAfectaCaja(array $validated): float
     {
         if (($validated['tipo_pago'] ?? 'contado') === 'credito') {
-            return round((float) ($validated['pago_inicial'] ?? 0), 2);
+            $efectivo = (float) ($validated['monto_efectivo'] ?? 0);
+            $qr = (float) ($validated['monto_qr'] ?? 0);
+            $pagoInicial = $efectivo + $qr > 0 ? $efectivo + $qr : (float) ($validated['pago_inicial'] ?? 0);
+            return round($pagoInicial, 2);
         }
 
         $items = $validated['items'] ?? [];

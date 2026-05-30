@@ -102,7 +102,7 @@
           <q-card-section class="q-pa-sm">
             <q-form ref="formVenta" @submit.prevent="guardarVenta">
               <div class="row q-col-gutter-xs q-mb-xs">
-                <div class="col-12 col-sm-8">
+                <div class="col-12">
                   <q-select
                     v-model="form.cliente_id"
                     label="Cliente"
@@ -128,11 +128,6 @@
                         @click.stop="dialogClienteNuevo = true"
                       />
                     </template>
-                    <template #selected-item="scope">
-<!--                        <div class="ellipsis">-->
-<!--                          {{ scope.opt.nombre }} <span class="text-grey-7">CI: {{ scope.opt.ci || '-' }}</span>-->
-<!--                        </div>-->
-                    </template>
                     <template #option="scope">
                       <q-item v-bind="scope.itemProps">
                         <q-item-section>
@@ -143,20 +138,11 @@
                     </template>
                   </q-select>
                 </div>
-                <div class="col-12 col-sm-4">
-                  <q-select
-                    v-model="form.metodo_pago"
-                    label="Efectivo"
-                    dense outlined
-                    emit-value map-options
-                    :options="[
-                      { label: 'Efectivo', value: 'efectivo' },
-                      { label: 'QR', value: 'qr' }
-                    ]"
-                  />
+                <div class="col-12 col-sm-6">
+                  <q-input v-model.number="form.monto_efectivo" type="number" min="0" label="Efectivo (Bs)" dense outlined />
                 </div>
-                <div class="col-12 col-sm-6" v-if="form.tipo_pago === 'credito'">
-                  <q-input v-model.number="form.pago_inicial" type="number" min="0" :max="total" label="Pago inicial" dense outlined />
+                <div class="col-12 col-sm-6">
+                  <q-input v-model.number="form.monto_qr" type="number" min="0" label="QR (Bs)" dense outlined />
                 </div>
                 <div class="col-12 col-sm-5">
                   <q-checkbox v-model="form.facturado" label="Facturado SIAT" dense />
@@ -174,13 +160,21 @@
                     <td class="text-right text-weight-bold" style="width: 70%">Total</td>
                     <td class="text-right text-weight-bold">{{ money(total) }} Bs</td>
                   </tr>
-                  <tr v-if="form.tipo_pago === 'credito'">
-                    <td class="text-right">Pago inicial</td>
-                    <td class="text-right">{{ money(form.pago_inicial || 0) }} Bs</td>
+                  <tr v-if="form.monto_efectivo > 0">
+                    <td class="text-right text-grey-7">Efectivo</td>
+                    <td class="text-right">{{ money(form.monto_efectivo) }} Bs</td>
                   </tr>
-                  <tr v-if="form.tipo_pago === 'credito'">
-                    <td class="text-right">Saldo</td>
-                    <td class="text-right">{{ money(total - Number(form.pago_inicial || 0)) }} Bs</td>
+                  <tr v-if="form.monto_qr > 0">
+                    <td class="text-right text-grey-7">QR</td>
+                    <td class="text-right">{{ money(form.monto_qr) }} Bs</td>
+                  </tr>
+                  <tr>
+                    <td class="text-right">Pagado</td>
+                    <td class="text-right" :class="deuda > 0 ? 'text-orange-8' : 'text-positive text-weight-bold'">{{ money(montoPagado) }} Bs</td>
+                  </tr>
+                  <tr v-if="deuda > 0">
+                    <td class="text-right text-weight-bold text-negative">Deuda</td>
+                    <td class="text-right text-weight-bold text-negative">{{ money(deuda) }} Bs</td>
                   </tr>
                 </tbody>
               </q-markup-table>
@@ -454,7 +448,10 @@
         </q-card-section>
         <q-card-section>
           <div class="row q-col-gutter-sm">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-3">
+              <q-input v-model="garantia.fecha" dense outlined type="date" label="Fecha del préstamo" :rules="[req]" />
+            </div>
+            <div class="col-12 col-md-5">
               <q-input
                 :model-value="clienteSeleccionado?.nombre || ''"
                 dense
@@ -463,7 +460,7 @@
                 label="Cliente"
               />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
               <q-select
                 v-model="garantia.tipo"
                 dense
@@ -510,7 +507,7 @@
               <q-input :model-value="selectedInventario ? selectedInventario.cantidad : 0" dense outlined readonly label="Disponible" />
             </div>
             <div class="col-12 col-md-4">
-              <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />
+<!--              <q-input :model-value="money(selectedInventario ? selectedInventario.precio : 0)" dense outlined readonly label="Precio referencia" suffix="Bs" />-->
             </div>
             <div class="col-12 col-md-4">
               <q-input
@@ -647,11 +644,10 @@ export default {
       historialRows: [],
       form: {
         cliente_id: null,
-        tipo_pago: 'contado',
-        metodo_pago: 'efectivo',
+        monto_efectivo: 0,
+        monto_qr: 0,
         fecha_venta: new Date().toISOString().slice(0, 10),
         facturado: false,
-        pago_inicial: 0,
         observacion: ''
       },
       clienteNew: {
@@ -676,7 +672,8 @@ export default {
         efectivo_manual: false,
         metodo_pago: 'efectivo',
         fisico: '',
-        observacion: ''
+        observacion: '',
+        fecha: new Date().toISOString().slice(0, 10)
       },
       garantiaItems: [],
       historialCols: [
@@ -730,6 +727,9 @@ export default {
       })
     },
     total () { return this.carrito.reduce((a, b) => a + Number(b.subtotal || 0), 0) },
+    montoPagado () { return Number(this.form.monto_efectivo || 0) + Number(this.form.monto_qr || 0) },
+    deuda () { return Math.max(0, Math.round((this.total - this.montoPagado) * 100) / 100) },
+    tipoPago () { return this.deuda > 0 ? 'credito' : 'contado' },
     totalHistorial () { return this.historialRows.reduce((acc, row) => acc + Number(row.total || 0), 0) }
   },
   mounted () {
@@ -930,11 +930,12 @@ export default {
           cliente_id: this.form.cliente_id,
           tipo_venta: this.tipoVenta,
           tipo_movimiento: 'ingreso',
-          tipo_pago: this.form.tipo_pago,
-          metodo_pago: this.form.metodo_pago,
+          tipo_pago: this.tipoPago,
+          monto_efectivo: Number(this.form.monto_efectivo || 0),
+          monto_qr: Number(this.form.monto_qr || 0),
+          pago_inicial: this.montoPagado,
           fecha_venta: this.form.fecha_venta,
           facturado: this.form.facturado,
-          pago_inicial: this.form.tipo_pago === 'credito' ? this.form.pago_inicial : 0,
           observacion: this.form.observacion,
           items: this.carrito.map(i => ({
             producto_id: i.producto_id,
@@ -970,7 +971,7 @@ export default {
       this.resetVentaNueva()
     },
     async abrirDialogGarantia () {
-      this.garantia = { inventario_id: null, cantidad: 1, tipo: 'prestamo', efectivo: 0, efectivo_manual: false, metodo_pago: 'efectivo', fisico: '', observacion: '' }
+      this.garantia = { inventario_id: null, cantidad: 1, tipo: 'prestamo', efectivo: 0, efectivo_manual: false, metodo_pago: 'efectivo', fisico: '', observacion: '', fecha: this.form.fecha_venta || new Date().toISOString().slice(0, 10) }
       this.garantiaItems = []
       try {
         await this.cargarInventarios()
@@ -1022,10 +1023,12 @@ export default {
         cantidad: Number(this.garantia.cantidad || 0),
         efectivo: Number(this.garantia.efectivo || 0),
         metodo_pago: this.garantia.metodo_pago || 'efectivo',
-        observacion: this.garantia.observacion || ''
+        observacion: this.garantia.observacion || '',
+        fecha: this.garantia.fecha
       }
       this.garantiaItems.push(item)
 
+      const fechaActual = this.garantia.fecha
       this.garantia = {
         inventario_id: null,
         cantidad: 1,
@@ -1034,7 +1037,8 @@ export default {
         efectivo_manual: false,
         metodo_pago: 'efectivo',
         fisico: '',
-        observacion: ''
+        observacion: '',
+        fecha: fechaActual
       }
     },
     quitarGarantiaItem (uid) {
@@ -1060,7 +1064,8 @@ export default {
             metodo_pago: item.metodo_pago,
             fisico: '',
             observacion: item.observacion,
-            tipo_venta: this.tipoVenta
+            tipo_venta: this.tipoVenta,
+            fecha: item.fecha
           })
         }
         this.$alert.success('Garantia registrada')
@@ -1130,11 +1135,10 @@ export default {
       this.search = ''
       this.form = {
         cliente_id: null,
-        tipo_pago: 'contado',
-        metodo_pago: 'efectivo',
+        monto_efectivo: 0,
+        monto_qr: 0,
         fecha_venta: fechaActual,
         facturado: false,
-        pago_inicial: 0,
         observacion: ''
       }
       this.garantia = {

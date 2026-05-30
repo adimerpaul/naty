@@ -27,7 +27,7 @@
               />
             </div>
             <div class="col-12 col-md-4">
-              <q-input v-model="form.hoja_hora" type="time" dense outlined label="Hora" />
+              <q-input v-model="form.hoja_hora" type="text" dense outlined label="Hora" />
             </div>
             <div class="col-12 col-md-6">
               <q-input v-model="form.hoja_telefono_1" dense outlined label="Telefono 1" />

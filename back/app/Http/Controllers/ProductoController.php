@@ -63,6 +63,21 @@ class ProductoController extends Controller
         return $producto;
     }
 
+    public function reordenar(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array',
+            'items.*.id' => 'required|integer|exists:productos,id',
+            'items.*.orden' => 'required|integer|min:1',
+        ]);
+
+        foreach ($request->items as $item) {
+            Producto::where('id', $item['id'])->update(['orden' => $item['orden']]);
+        }
+
+        return response()->json(['message' => 'Orden actualizado']);
+    }
+
     public function destroy(Producto $producto)
     {
         $producto->delete();

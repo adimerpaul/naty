@@ -396,8 +396,10 @@
           >
             <l-tile-layer
               :url="tileUrlUbicaciones"
+              :subdomains="['0','1','2','3']"
               layer-type="base"
               name="Mapa"
+              :max-zoom="20"
             />
             <l-marker
               v-for="c in clientesConUbicacion"
@@ -449,18 +451,14 @@ export default {
         sortBy: 'id',
         descending: true
       },
-      columns: [
+      allColumns: [
         { name: 'actions', label: 'Acciones', align: 'left' },
         { name: 'nombre', label: 'Nombre', align: 'left', field: 'nombre' },
-        // { name: 'local', label: 'Local', align: 'left', field: 'local' },
         { name: 'titular', label: 'Titular', align: 'left', field: 'titular' },
-        // { name: 'tipo', label: 'Tipo', align: 'left', field: 'tipo' },
         { name: 'ci', label: 'CI', align: 'left', field: 'ci' },
         { name: 'telefono', label: 'Telefono', align: 'left', field: 'telefono' },
         { name: 'direccion', label: 'Direccion', align: 'left', field: 'direccion' },
         { name: 'fechanac', label: 'F. Nac.', align: 'left', field: 'fechanac' },
-        // { name: 'legalidad', label: 'Legalidad', align: 'left', field: 'legalidad' },
-        // { name: 'categoria', label: 'Categoria', align: 'left', field: 'categoria' },
         { name: 'razon_social', label: 'Razon social', align: 'left', field: 'razon_social' },
         { name: 'nit', label: 'NIT', align: 'left', field: 'nit' },
         { name: 'lat', label: 'Lat', align: 'left', field: 'lat' },
@@ -503,6 +501,12 @@ export default {
     tipoCliente () {
       return this.$route.params.tipo === 'local' ? 'local' : 'detalle'
     },
+    columns () {
+      if (this.tipoCliente === 'detalle') {
+        return this.allColumns.filter(c => c.name !== 'titular')
+      }
+      return this.allColumns
+    },
     tituloPagina () {
       return this.tipoCliente === 'local' ? 'Cliente local' : 'Cliente detalle'
     },
@@ -536,8 +540,8 @@ export default {
     },
     tileUrlUbicaciones () {
       return this.mapaCapaUbicaciones === 'satelite'
-        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        ? 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+        : 'https://mt{s}.google.com/vt/lyrs=r&x={x}&y={y}&z={z}'
     },
     ubicacionesCenter () {
       const lista = this.clientesConUbicacion
