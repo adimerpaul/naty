@@ -105,7 +105,6 @@
     <tr>
         <th>#</th>
         <th>Nombre</th>
-        <th>Tipo</th>
         <th>CI</th>
         <th>Telefono</th>
         <th>Direccion</th>
@@ -121,7 +120,6 @@
         <tr>
             <td>{{ $c->id }}</td>
             <td><strong>{{ $c->nombre }}</strong>@if($c->titular && $c->titular !== $c->nombre)<br><small style="color:#777">{{ $c->titular }}</small>@endif</td>
-            <td>{{ ucfirst($c->tipo_cliente) }}</td>
             <td>{{ $c->ci }}</td>
             <td>{{ $c->telefono }}</td>
             <td>{{ $c->direccion }}</td>
@@ -139,7 +137,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="11" style="text-align:center; padding: 20px; color: #999;">Sin registros</td>
+            <td colspan="10" style="text-align:center; padding: 20px; color: #999;">Sin registros</td>
         </tr>
     @endforelse
     </tbody>

@@ -127,25 +127,6 @@
           Módulos
         </div>
 
-        <!-- DASHBOARD -->
-        <q-item
-          dense
-          to="/"
-          exact
-          clickable
-          class="naty-menu-item"
-          active-class="naty-menu-active"
-          v-close-popup
-          v-if="hasPermission('Dashboard')"
-        >
-          <q-item-section avatar>
-            <q-icon name="dashboard" size="sm" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Dashboard</q-item-label>
-          </q-item-section>
-        </q-item>
-
         <!-- USUARIOS -->
         <q-item
           dense
@@ -163,97 +144,6 @@
           <q-item-section>
             <q-item-label>Usuarios</q-item-label>
           </q-item-section>
-        </q-item>
-
-        <!-- IMPUESTOS -->
-        <q-item
-          dense
-          to="/impuestos"
-          exact
-          clickable
-          class="naty-menu-item"
-          active-class="naty-menu-active"
-          v-close-popup
-          v-if="hasPermission('Usuarios') || isAdmin"
-        >
-          <q-item-section avatar>
-            <q-icon name="receipt" size="sm" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Impuestos</q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- INVENTARIO -->
-        <q-item
-          dense
-          to="/inventarios"
-          exact
-          clickable
-          class="naty-menu-item"
-          active-class="naty-menu-active"
-          v-close-popup
-          v-if="hasPermission('Inventario') || isAdmin"
-        >
-          <q-item-section avatar>
-            <q-icon name="inventory_2" size="sm" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Inventario</q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- CAJAS -->
-        <q-item
-          dense
-          to="/cajas"
-          exact
-          clickable
-          class="naty-menu-item"
-          active-class="naty-menu-active"
-          v-close-popup
-          v-if="hasPermission('Cajas') || isAdmin"
-        >
-          <q-item-section avatar>
-            <q-icon name="account_balance_wallet" size="sm" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Cajas</q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <!-- PERSONAL (submenu popup) -->
-        <q-item
-          dense
-          clickable
-          class="naty-menu-item"
-          :class="{ 'naty-menu-active': isSubmenuActive('personal') }"
-          v-if="hasPermission('Personal') || hasPermission('Pagos Personal') || hasPermission('Historial Pagos Personal') || isAdmin"
-        >
-          <q-item-section avatar>
-            <q-icon name="badge" size="sm" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Personal</q-item-label>
-          </q-item-section>
-          <q-item-section side>
-            <q-icon name="chevron_right" size="xs" style="color: rgba(255,255,255,0.7)" />
-          </q-item-section>
-          <q-menu anchor="top end" self="top start" auto-close class="naty-submenu-popup">
-            <div class="naty-submenu-header">
-              <q-icon name="badge" size="xs" class="q-mr-xs" />Personal
-            </div>
-            <q-list style="min-width: 210px">
-              <q-item dense to="/personal" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Personal') || isAdmin">
-                <q-item-section avatar><q-icon name="groups" size="xs" color="primary" /></q-item-section>
-                <q-item-section><q-item-label>Personal</q-item-label></q-item-section>
-              </q-item>
-              <q-item dense to="/personal/pagos" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Pagos Personal') || isAdmin">
-                <q-item-section avatar><q-icon name="payments" size="xs" color="primary" /></q-item-section>
-                <q-item-section><q-item-label>Pagos</q-item-label></q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
         </q-item>
 
         <!-- DETALLE (submenu popup) -->
@@ -356,6 +246,97 @@
           </q-menu>
         </q-item>
 
+        <!-- INVENTARIO -->
+        <q-item
+          dense
+          to="/inventarios"
+          exact
+          clickable
+          class="naty-menu-item"
+          active-class="naty-menu-active"
+          v-close-popup
+          v-if="hasPermission('Inventario') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="inventory_2" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Inventario</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <!-- PERSONAL (submenu popup) -->
+        <q-item
+          dense
+          clickable
+          class="naty-menu-item"
+          :class="{ 'naty-menu-active': isSubmenuActive('personal') }"
+          v-if="hasPermission('Personal') || hasPermission('Pagos Personal') || hasPermission('Historial Pagos Personal') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="badge" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Personal</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-icon name="chevron_right" size="xs" style="color: rgba(255,255,255,0.7)" />
+          </q-item-section>
+          <q-menu anchor="top end" self="top start" auto-close class="naty-submenu-popup">
+            <div class="naty-submenu-header">
+              <q-icon name="badge" size="xs" class="q-mr-xs" />Personal
+            </div>
+            <q-list style="min-width: 210px">
+              <q-item dense to="/personal" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Personal') || isAdmin">
+                <q-item-section avatar><q-icon name="groups" size="xs" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Personal</q-item-label></q-item-section>
+              </q-item>
+              <q-item dense to="/personal/pagos" exact clickable active-class="naty-menu-popup-active" v-close-popup v-if="hasPermission('Pagos Personal') || isAdmin">
+                <q-item-section avatar><q-icon name="payments" size="xs" color="primary" /></q-item-section>
+                <q-item-section><q-item-label>Pagos</q-item-label></q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-item>
+
+        <!-- CAJAS -->
+        <q-item
+          dense
+          to="/cajas"
+          exact
+          clickable
+          class="naty-menu-item"
+          active-class="naty-menu-active"
+          v-close-popup
+          v-if="hasPermission('Cajas') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="account_balance_wallet" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Cajas</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <!-- IMPUESTOS -->
+        <q-item
+          dense
+          to="/impuestos"
+          exact
+          clickable
+          class="naty-menu-item"
+          active-class="naty-menu-active"
+          v-close-popup
+          v-if="hasPermission('Usuarios') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="receipt" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Impuestos</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <!-- GRADERÍAS -->
         <q-item
           dense
@@ -390,6 +371,25 @@
           </q-item-section>
           <q-item-section>
             <q-item-label>Nueva operacion</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <!-- DASHBOARD -->
+        <q-item
+          dense
+          to="/"
+          exact
+          clickable
+          class="naty-menu-item"
+          active-class="naty-menu-active"
+          v-close-popup
+          v-if="hasPermission('Dashboard')"
+        >
+          <q-item-section avatar>
+            <q-icon name="dashboard" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Dashboard</q-item-label>
           </q-item-section>
         </q-item>
 

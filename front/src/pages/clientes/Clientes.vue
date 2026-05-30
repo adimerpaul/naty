@@ -357,17 +357,47 @@
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section style="height: calc(100vh - 70px); padding: 8px 16px;">
+          <div class="row items-center q-gutter-sm q-mb-sm">
+            <q-select
+              v-model="clienteSeleccionadoUbicacion"
+              :options="opcionesFiltradas"
+              label="Ir a cliente..."
+              dense
+              outlined
+              clearable
+              use-input
+              hide-selected
+              fill-input
+              input-debounce="150"
+              style="min-width: 280px"
+              no-error-icon
+              @filter="filtrarOpcionesUbicacion"
+              @update:model-value="irACliente"
+            />
+            <q-btn-toggle
+              v-model="mapaCapaUbicaciones"
+              no-caps
+              dense
+              rounded
+              toggle-color="primary"
+              :options="[
+                { label: 'Mapa', value: 'calle', icon: 'map' },
+                { label: 'Satelite', value: 'satelite', icon: 'satellite_alt' }
+              ]"
+            />
+          </div>
           <l-map
+            ref="ubicacionesMap"
             v-if="dialogUbicaciones"
-            style="height: 100%; width: 100%; border-radius: 8px;"
+            style="height: calc(100% - 52px); width: 100%; border-radius: 8px;"
             :zoom="13"
             :center="ubicacionesCenter"
             :use-global-leaflet="false"
           >
             <l-tile-layer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              :url="tileUrlUbicaciones"
               layer-type="base"
-              name="OpenStreetMap"
+              name="Mapa"
             />
             <l-marker
               v-for="c in clientesConUbicacion"
@@ -404,6 +434,9 @@ export default {
       dialogHistorial: false,
       dialogUbicaciones: false,
       filtroEstado: 'todos',
+      clienteSeleccionadoUbicacion: null,
+      mapaCapaUbicaciones: 'calle',
+      opcionesFiltradas: [],
       loading: false,
       loadingPdf: false,
       historialCliente: null,
@@ -493,6 +526,19 @@ export default {
     clientesConUbicacion () {
       return this.clientes.filter(c => c.lat && c.lng)
     },
+    opcionesClientesUbicacion () {
+      return this.clientesConUbicacion.map(c => ({
+        label: c.nombre,
+        value: c.id,
+        lat: Number(c.lat),
+        lng: Number(c.lng)
+      }))
+    },
+    tileUrlUbicaciones () {
+      return this.mapaCapaUbicaciones === 'satelite'
+        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    },
     ubicacionesCenter () {
       const lista = this.clientesConUbicacion
       if (lista.length === 0) return [-17.9647, -67.1060]
@@ -505,6 +551,14 @@ export default {
   watch: {
     '$route.params.tipo' () {
       this.clientesGet()
+    },
+    dialogUbicaciones (val) {
+      if (!val) {
+        this.clienteSeleccionadoUbicacion = null
+        this.mapaCapaUbicaciones = 'calle'
+      } else {
+        this.opcionesFiltradas = this.opcionesClientesUbicacion.slice()
+      }
     }
   },
 
@@ -667,7 +721,7 @@ export default {
       this.loadingPdf = true
       try {
         const res = await this.$axios.get('clientes/pdf', {
-          params: { tipo_cliente: this.tipoCliente },
+          params: { tipo_cliente: this.tipoCliente, filtro_estado: this.filtroEstado },
           responseType: 'blob',
           timeout: 90000
         })
@@ -685,6 +739,21 @@ export default {
       } finally {
         this.loadingPdf = false
       }
+    },
+    irACliente (opcion) {
+      if (!opcion) return
+      const map = this.$refs.ubicacionesMap?.leafletObject
+      if (map) {
+        map.flyTo([opcion.lat, opcion.lng], 17)
+      }
+    },
+    filtrarOpcionesUbicacion (val, update) {
+      update(() => {
+        const v = val.toLowerCase()
+        this.opcionesFiltradas = v
+          ? this.opcionesClientesUbicacion.filter(o => o.label.toLowerCase().includes(v))
+          : this.opcionesClientesUbicacion.slice()
+      })
     },
     payloadCliente () {
       const base = { ...this.cliente, tipo_cliente: this.tipoCliente }

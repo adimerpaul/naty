@@ -115,6 +115,13 @@ class ClienteController extends Controller
             $query->where('tipo_cliente', $request->tipo_cliente);
         }
 
+        $filtroEstado = $request->input('filtro_estado', 'todos');
+        if ($filtroEstado === 'activos') {
+            $query->where('estado', true);
+        } elseif ($filtroEstado === 'inactivos') {
+            $query->where('estado', false);
+        }
+
         $clientes = $query->get();
         $tipo = $request->tipo_cliente ?: 'todos';
         $logoPath = public_path('images/logo.png');
