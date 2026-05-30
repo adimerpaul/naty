@@ -14,6 +14,7 @@ use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
 use App\Http\Controllers\CumpleaniosController;
 use App\Http\Controllers\ImpuestoController;
+use App\Http\Controllers\AlmacenController;
 
 Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
 Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
@@ -107,4 +108,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ventas/{venta}/pagos/{pago}/anular', [VentaController::class, 'anularPago']);
     Route::post('/ventas/{venta}/pagos/{pago}/pagar', [VentaController::class, 'pagarCuota']);
 
+    Route::get('/materials', [AlmacenController::class, 'materialsIndex']);
+    Route::post('/materials', [AlmacenController::class, 'materialsStore']);
+    Route::put('/materials/{material}', [AlmacenController::class, 'materialsUpdate']);
+    Route::get('/providers', [AlmacenController::class, 'providersIndex']);
+    Route::post('/providers', [AlmacenController::class, 'providersStore']);
+    Route::put('/providers/{provider}', [AlmacenController::class, 'providersUpdate']);
+    Route::get('/compras', [AlmacenController::class, 'comprasIndex']);
+    Route::post('/compras', [AlmacenController::class, 'comprasStore']);
+    Route::get('/recuentos', [AlmacenController::class, 'recuentosIndex']);
+    Route::post('/recuentos', [AlmacenController::class, 'recuentosStore']);
+    Route::get('/log-compras', [AlmacenController::class, 'pagosIndex']);
+    Route::post('/log-compras', [AlmacenController::class, 'pagosStore']);
 });

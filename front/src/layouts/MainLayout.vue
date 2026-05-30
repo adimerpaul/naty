@@ -195,6 +195,23 @@
             </q-list>
           </q-menu>
         </q-item>
+                      <q-item
+          dense
+          to="/almacen"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Almacen') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="warehouse" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Almacen</q-item-label>
+          </q-item-section>
+        </q-item>
 
         <!-- LOCAL (submenu popup) -->
         <q-item

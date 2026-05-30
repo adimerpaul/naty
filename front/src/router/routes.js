@@ -79,8 +79,12 @@ const routes = [
         path: '/ventas/:tipo(detalle|local)/nueva',
         component: () => import('pages/ventas/VentaNueva.vue'),
         meta: { requiresAuth: true }
-      }
-
+      },
+      {
+        path: '/almacen',
+        component: () => import('pages/almacen/Almacen.vue'),
+        meta: { requiresAuth: true }
+      },
     ]
   },
   {
