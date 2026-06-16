@@ -13,7 +13,38 @@ class InventarioController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Inventario::query()->orderBy('orden')->orderBy('id', 'desc');
+        $prestadosSql = <<<'SQL'
+            (
+                select coalesce(sum(
+                    case
+                        when p.cantidad - coalesce((
+                            select sum(pr.cantidad)
+                            from prestamo_retornos pr
+                            where pr.prestamo_id = p.id
+                                and pr.deleted_at is null
+                        ), 0) > 0
+                        then p.cantidad - coalesce((
+                            select sum(pr.cantidad)
+                            from prestamo_retornos pr
+                            where pr.prestamo_id = p.id
+                                and pr.deleted_at is null
+                        ), 0)
+                        else 0
+                    end
+                ), 0)
+                from prestamos p
+                where p.inventario_id = inventarios.id
+                    and p.tipo = 'prestamo'
+                    and p.estado in ('EN PRESTAMO', 'PARCIAL')
+                    and p.deleted_at is null
+            ) as cantidad_prestada
+        SQL;
+
+        $query = Inventario::query()
+            ->select('inventarios.*')
+            ->selectRaw($prestadosSql)
+            ->orderBy('orden')
+            ->orderBy('id', 'desc');
         if ($request->filled('search')) {
             $s = trim((string)$request->search);
             $query->where(function ($q) use ($s) {

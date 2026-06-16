@@ -7,6 +7,7 @@ use App\Models\Personal;
 use App\Models\PersonalPago;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,8 +17,12 @@ class PersonalPagoController extends Controller
 {
     public function index(Request $request)
     {
+        $this->validateDateRange($request);
+
         $query = PersonalPago::with(['personal', 'caja', 'user'])->orderBy('id', 'desc');
-        if ($request->filled('mes')) {
+        if ($this->hasDateRange($request)) {
+            $this->applyDateRange($query, $request);
+        } elseif ($request->filled('mes')) {
             $query->where('mes', $request->mes);
         }
         if ($request->filled('personal_id')) {
@@ -34,23 +39,29 @@ class PersonalPagoController extends Controller
 
     public function resumenMensual(Request $request)
     {
+        $this->validateDateRange($request);
+
         $query = PersonalPago::with(['personal'])
             ->where('estado', 'ACTIVO')
             ->whereHas('personal', function ($q) {
                 $q->where('estado', 'ACTIVO');
             });
 
-        if ($request->filled('mes')) {
+        $groupByPeriodo = false;
+        if ($this->hasDateRange($request)) {
+            $this->applyDateRange($query, $request);
+        } elseif ($request->filled('mes')) {
             $query->where('mes', $request->mes);
+            $groupByPeriodo = true;
         }
         if ($request->filled('personal_id')) {
             $query->where('personal_id', $request->personal_id);
         }
 
         $rows = $query->get();
-        $grouped = $rows->groupBy(function ($r) {
-            return $r->personal_id . '|' . $r->mes;
-        });
+        $grouped = $rows->groupBy(
+            fn ($r) => $groupByPeriodo ? $r->personal_id . '|' . $r->mes : $r->personal_id
+        );
 
         $result = $grouped->map(function ($items) {
             $first = $items->first();
@@ -64,6 +75,8 @@ class PersonalPagoController extends Controller
                 'personal_nombre' => $first->personal?->nombre,
                 'ci' => $first->personal?->ci,
                 'mes' => $first->mes,
+                'periodo_inicio' => $items->min('fecha_pago'),
+                'periodo_fin' => $items->max('fecha_pago'),
                 'sueldo' => round($sueldo, 2),
                 'extras' => round($extras, 2),
                 'adelantos' => round($adelantos, 2),
@@ -300,5 +313,32 @@ class PersonalPagoController extends Controller
         $ingresos = (float) ($row->ingresos ?? 0);
         $egresos = (float) ($row->egresos ?? 0);
         return round($ingresos - $egresos, 2);
+    }
+
+    private function validateDateRange(Request $request): void
+    {
+        if (!$this->hasDateRange($request)) {
+            return;
+        }
+
+        $request->validate([
+            'fecha_inicio' => 'required_with:fecha_fin|date',
+            'fecha_fin' => 'required_with:fecha_inicio|date|after_or_equal:fecha_inicio',
+        ]);
+    }
+
+    private function hasDateRange(Request $request): bool
+    {
+        return $request->filled('fecha_inicio') || $request->filled('fecha_fin');
+    }
+
+    private function applyDateRange(Builder $query, Request $request): void
+    {
+        if ($request->filled('fecha_inicio')) {
+            $query->whereDate('fecha_pago', '>=', $request->fecha_inicio);
+        }
+        if ($request->filled('fecha_fin')) {
+            $query->whereDate('fecha_pago', '<=', $request->fecha_fin);
+        }
     }
 }

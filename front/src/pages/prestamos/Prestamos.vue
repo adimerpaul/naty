@@ -22,6 +22,11 @@
               <q-item-section avatar><q-icon name="sell" color="primary" /></q-item-section>
               <q-item-section>Vendidos</q-item-section>
             </q-item>
+            <q-separator />
+            <q-item clickable v-close-popup @click="abrirReporte('excel')">
+              <q-item-section avatar><q-icon name="table_view" color="positive" /></q-item-section>
+              <q-item-section>Excel</q-item-section>
+            </q-item>
           </q-list>
         </q-btn-dropdown>
         <q-btn color="primary" flat no-caps icon="refresh" label="Actualizar" :loading="loading" @click="cargarAll" />
@@ -61,13 +66,35 @@
         :rows="prestamos"
         :columns="colsPrestamos"
         row-key="id"
-        :filter="filter"
         v-model:pagination="pagination"
         :rows-per-page-options="[25, 50, 100]"
         :loading="loading"
+        binary-state-sort
+        @request="onPrestamosRequest"
       >
         <template #top-right>
-          <q-input v-model="filter" dense outlined label="Buscar" style="width: 260px">
+          <q-select
+            v-model="filtros.inventario_id"
+            dense
+            outlined
+            emit-value
+            map-options
+            clearable
+            :options="inventariosFiltroOptions"
+            label="Inventario"
+            style="width: 260px"
+            class="q-mr-sm"
+            @update:model-value="filtrarPrestamos"
+          />
+          <q-input
+            v-model="filter"
+            dense
+            outlined
+            debounce="400"
+            label="Buscar"
+            style="width: 260px"
+            @update:model-value="filtrarPrestamos"
+          >
             <template #append><q-icon name="search" /></template>
           </q-input>
         </template>
@@ -394,6 +421,19 @@
                 label="Estado"
               />
             </div>
+            <div class="col-12 col-md-6">
+              <q-select
+                v-model="filtros.inventario_id"
+                dense
+                outlined
+                emit-value
+                map-options
+                clearable
+                :options="inventariosFiltroOptions"
+                label="Inventario"
+                @update:model-value="filtrarPrestamos"
+              />
+            </div>
             <div class="col-12 col-md-4">
               <q-toggle v-model="reporte.unDia" dense label="Solo un dia" @update:model-value="syncReporteUnDia" />
             </div>
@@ -407,6 +447,7 @@
           <div class="row justify-end q-gutter-sm q-mt-md">
             <q-btn flat color="negative" no-caps label="Cancelar" v-close-popup />
             <q-btn color="primary" no-caps icon="print" label="Imprimir ticket" :loading="loadingPdf" @click="imprimirReporteTicket" />
+            <q-btn color="positive" no-caps icon="table_view" label="Excel" :loading="loadingPdf" @click="exportReporteExcel" />
             <q-btn color="deep-orange" no-caps icon="picture_as_pdf" label="Generar PDF" :loading="loadingPdf" @click="exportReportePdf" />
           </div>
         </q-card-section>
@@ -428,6 +469,9 @@ export default {
       loadingRetorno: false,
       loadingPdf: false,
       filter: '',
+      filtros: {
+        inventario_id: null
+      },
       prestamos: [],
       clientes: [],
       clientesFiltrados: [],
@@ -471,7 +515,7 @@ export default {
         fisico: '',
         observacion: ''
       },
-      pagination: { page: 1, rowsPerPage: 50, sortBy: 'id', descending: true },
+      pagination: { page: 1, rowsPerPage: 50, sortBy: 'id', descending: true, rowsNumber: 0 },
       pres: {
         cliente_id: null,
         inventario_id: null,
@@ -548,6 +592,11 @@ export default {
         .filter(i => Number(i.cantidad || 0) > 0 && this.isInventarioActivo(i))
         .map(i => ({ label: `${i.nombre} (${i.cantidad}) - ${this.money(i.precio)} Bs`, value: i.id }))
     },
+    inventariosFiltroOptions () {
+      return this.inventarios
+        .map(i => ({ label: i.nombre, value: i.id }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    },
     selectedInventario () {
       return this.inventarios.find(i => i.id === this.pres.inventario_id) || null
     }
@@ -555,6 +604,7 @@ export default {
   watch: {
     '$route.params.tipo' () {
       this.pres = this.defaultPres()
+      this.pagination.page = 1
       this.cargarAll()
     },
     'pres.inventario_id' () {
@@ -623,11 +673,58 @@ export default {
     },
     async cargarInventarios () {
       const r = await this.$axios.get('inventarios')
-      this.inventarios = (r.data || []).filter(i => this.isInventarioActivo(i))
+      this.inventarios = r.data || []
     },
-    async cargarPrestamos () {
-      const r = await this.$axios.get('prestamos', { params: { tipo_venta: this.tipoCliente } })
-      this.prestamos = r.data || []
+    prestamosParams (extra = {}, paginar = true) {
+      const params = {
+        tipo_venta: this.tipoCliente,
+        search: this.filter || null,
+        inventario_id: this.filtros.inventario_id || null,
+        ...extra
+      }
+
+      if (paginar) {
+        params.page = this.pagination.page
+        params.per_page = this.pagination.rowsPerPage
+      }
+
+      Object.keys(params).forEach(key => {
+        if (params[key] === null || params[key] === '') delete params[key]
+      })
+
+      return params
+    },
+    async cargarPrestamos (props = null) {
+      if (props?.pagination) {
+        this.pagination = {
+          ...this.pagination,
+          ...props.pagination
+        }
+      }
+
+      const r = await this.$axios.get('prestamos', { params: this.prestamosParams() })
+      const payload = r.data || {}
+      this.prestamos = payload.data || []
+      this.pagination = {
+        ...this.pagination,
+        page: payload.current_page || this.pagination.page,
+        rowsPerPage: Number(payload.per_page || this.pagination.rowsPerPage),
+        rowsNumber: Number(payload.total || 0)
+      }
+    },
+    async onPrestamosRequest (props) {
+      this.loading = true
+      try {
+        await this.cargarPrestamos(props)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo cargar prestamos')
+      } finally {
+        this.loading = false
+      }
+    },
+    filtrarPrestamos () {
+      this.pagination.page = 1
+      this.onPrestamosRequest({ pagination: this.pagination })
     },
     async cargarClientes () {
       const r = await this.$axios.get('clientes', { params: { tipo_cliente: this.tipoCliente } })
@@ -641,7 +738,7 @@ export default {
     abrirReporte (tipo) {
       const today = new Date().toISOString().slice(0, 10)
       this.reporte = {
-        tipo: tipo === 'todos' ? null : tipo,
+        tipo: ['todos', 'excel'].includes(tipo) ? null : tipo,
         estado: null,
         unDia: true,
         date_from: today,
@@ -654,18 +751,17 @@ export default {
         this.reporte.date_to = this.reporte.date_from
       }
     },
-    reporteRowsFiltradas () {
+    async reporteRowsFiltradas () {
       this.syncReporteUnDia()
-      const desde = this.reporte.date_from || ''
-      const hasta = this.reporte.date_to || desde
-      return (this.prestamos || []).filter(row => {
-        const fecha = String(row.fecha || '').slice(0, 10)
-        const okTipo = this.reporte.tipo ? row.tipo === this.reporte.tipo : true
-        const okEstado = this.reporte.estado ? row.estado === this.reporte.estado : true
-        const okDesde = desde ? fecha >= desde : true
-        const okHasta = hasta ? fecha <= hasta : true
-        return okTipo && okEstado && okDesde && okHasta
+      const r = await this.$axios.get('prestamos', {
+        params: this.prestamosParams({
+          tipo: this.reporte.tipo,
+          estado: this.reporte.estado,
+          date_from: this.reporte.date_from,
+          date_to: this.reporte.date_to
+        }, false)
       })
+      return r.data || []
     },
     reporteFiltroLabel () {
       const tipo = this.reporte.tipo === 'venta'
@@ -673,15 +769,85 @@ export default {
         : (this.reporte.tipo === 'prestamo' ? 'Prestamos' : 'Todos')
       return `${tipo}${this.reporte.estado ? ' - ' + this.reporte.estado : ''}`
     },
-    imprimirReporteTicket () {
-      Imprimir.reportePrestamosTicket(this.reporteRowsFiltradas(), {
-        titulo: 'Reporte Prestamos',
-        tipoVenta: this.tipoCliente,
-        dateFrom: this.reporte.date_from,
-        dateTo: this.reporte.date_to,
-        filtro: this.reporteFiltroLabel()
-      })
-      this.dialogReporte = false
+    async imprimirReporteTicket () {
+      this.loadingPdf = true
+      try {
+        const rows = await this.reporteRowsFiltradas()
+        Imprimir.reportePrestamosTicket(rows, {
+          titulo: 'Reporte Prestamos',
+          tipoVenta: this.tipoCliente,
+          dateFrom: this.reporte.date_from,
+          dateTo: this.reporte.date_to,
+          filtro: this.reporteFiltroLabel()
+        })
+        this.dialogReporte = false
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo imprimir reporte')
+      } finally {
+        this.loadingPdf = false
+      }
+    },
+    escapeExcelCell (value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+    },
+    async exportReporteExcel () {
+      this.loadingPdf = true
+      try {
+        const rows = await this.reporteRowsFiltradas()
+        const headers = [
+          'ID',
+          'Fecha',
+          'Cliente',
+          'Inventario',
+          'Cantidad prestada',
+          'Cantidad pendiente',
+          'Tipo',
+          'Estado',
+          'Monto recibido',
+          'Monto pendiente',
+          'Observacion'
+        ]
+        const trs = rows.map(row => {
+          const cells = [
+            row.id,
+            row.fecha,
+            row.cliente?.nombre || '-',
+            row.inventario?.nombre || '-',
+            row.cantidad,
+            row.cantidad_actual,
+            row.tipo === 'venta' ? 'Venta' : 'Prestamo',
+            row.estado,
+            this.money(row.fisico_recibido),
+            this.money(row.monto_pendiente ?? row.efectivo_actual),
+            row.observacion || ''
+          ]
+          return `<tr>${cells.map(value => `<td>${this.escapeExcelCell(value)}</td>`).join('')}</tr>`
+        }).join('')
+        const html = `
+          <table border="1">
+            <thead><tr>${headers.map(header => `<th>${this.escapeExcelCell(header)}</th>`).join('')}</tr></thead>
+            <tbody>${trs}</tbody>
+          </table>
+        `
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `reporte-prestamos-${this.tipoCliente}-${this.reporte.date_from}-${this.reporte.date_to}.xls`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+        this.dialogReporte = false
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo exportar Excel')
+      } finally {
+        this.loadingPdf = false
+      }
     },
     async exportReportePdf () {
       this.syncReporteUnDia()
@@ -692,6 +858,7 @@ export default {
             tipo_venta: this.tipoCliente,
             tipo: this.reporte.tipo,
             estado: this.reporte.estado,
+            inventario_id: this.filtros.inventario_id,
             date_from: this.reporte.date_from,
             date_to: this.reporte.date_to
           },

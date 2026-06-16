@@ -7,14 +7,17 @@
           <div class="text-caption text-grey-7">Lista densa del personal activo con registro en dialogo</div>
         </div>
         <div class="col-12 col-md-2">
-          <q-input v-model="filters.mes" type="month" dense outlined label="Mes" />
+          <q-input v-model="filters.fecha_inicio" type="date" dense outlined label="Fecha inicio" />
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-2">
+          <q-input v-model="filters.fecha_fin" type="date" dense outlined label="Fecha fin" />
+        </div>
+        <div class="col-12 col-md-2">
           <q-input v-model="filters.search" dense outlined label="Buscar personal" debounce="250">
             <template #append><q-icon name="search" /></template>
           </q-input>
         </div>
-        <div class="col-12 col-md-3 text-right">
+        <div class="col-12 col-md-2 text-right">
           <q-btn color="primary" no-caps icon="refresh" label="Actualizar" :loading="loading" @click="refreshBoard" />
           <q-btn class="q-ml-sm" color="positive" no-caps icon="add" label="Agregar pago" @click="abrirDialogPago()" />
         </div>
@@ -101,7 +104,7 @@
           </div>
         </div>
 
-        <div v-if="!selectedPersonal" class="text-grey-7">Seleccione un personal para ver y gestionar su historial del mes.</div>
+        <div v-if="!selectedPersonal" class="text-grey-7">Seleccione un personal para ver y gestionar su historial del rango.</div>
         <q-table
           v-else
           dense
@@ -235,8 +238,13 @@
 <script>
 import { Imprimir } from 'src/addons/Imprimir'
 
-const currentMonth = new Date().toISOString().slice(0, 7)
-const today = new Date().toISOString().slice(0, 10)
+const currentDate = new Date()
+const pad = value => String(value).padStart(2, '0')
+const toLocalDate = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+const currentMonth = `${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}`
+const today = toLocalDate(currentDate)
+const currentMonthStart = `${currentMonth}-01`
+const currentMonthEnd = toLocalDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
 
 export default {
   name: 'PersonalPagosBoard',
@@ -261,7 +269,8 @@ export default {
         observacion: ''
       },
       filters: {
-        mes: currentMonth,
+        fecha_inicio: currentMonthStart,
+        fecha_fin: currentMonthEnd,
         search: ''
       },
       columns: [
@@ -270,7 +279,7 @@ export default {
         { name: 'adelantos', label: 'Adelantos', align: 'right' },
         { name: 'extras', label: 'Extras', align: 'right' },
         { name: 'descuentos', label: 'Descuentos', align: 'right' },
-        { name: 'total', label: 'Total mes', align: 'right' },
+        { name: 'total', label: 'Total rango', align: 'right' },
         { name: 'actions', label: 'Acciones', align: 'left' }
       ],
       historyColumns: [
@@ -349,7 +358,10 @@ export default {
     }
   },
   watch: {
-    'filters.mes' () {
+    'filters.fecha_inicio' () {
+      this.refreshBoard()
+    },
+    'filters.fecha_fin' () {
       this.refreshBoard()
     },
     'dialogForm.tipo_registro' (value) {
@@ -398,6 +410,21 @@ export default {
       if (tipo === 'descuento') return 'negative'
       return 'grey-7'
     },
+    filterParams () {
+      return {
+        fecha_inicio: this.filters.fecha_inicio || null,
+        fecha_fin: this.filters.fecha_fin || null
+      }
+    },
+    monthFromDate (date) {
+      return date ? String(date).slice(0, 7) : currentMonth
+    },
+    defaultPaymentDate () {
+      const start = this.filters.fecha_inicio
+      const end = this.filters.fecha_fin
+      if (start && end && today >= start && today <= end) return today
+      return start || today
+    },
     async loadRefs () {
       const [personalesRes, cajasRes] = await Promise.all([
         this.$axios.get('personales'),
@@ -411,7 +438,7 @@ export default {
       this.loading = true
       try {
         const resumenRes = await this.$axios.get('personal-pagos/resumen-mensual', {
-          params: { mes: this.filters.mes }
+          params: this.filterParams()
         })
         this.resumenRows = resumenRes.data || []
         if (!this.selectedPersonalId && this.filteredRows.length) {
@@ -437,10 +464,11 @@ export default {
         return
       }
       this.selectedPersonalId = target.id
+      const fechaPago = this.defaultPaymentDate()
       this.dialogForm = {
         personal_id: target.id,
-        mes: this.filters.mes,
-        fecha_pago: today,
+        mes: this.monthFromDate(fechaPago),
+        fecha_pago: fechaPago,
         tipo_registro: 'adelanto',
         caja_id: this.cajas[0]?.id || null,
         monto: null,
@@ -454,7 +482,7 @@ export default {
       try {
         const historyRes = await this.$axios.get('personal-pagos', {
           params: {
-            mes: this.filters.mes,
+            ...this.filterParams(),
             personal_id: personalId
           }
         })

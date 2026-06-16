@@ -177,6 +177,7 @@ export default {
         { name: 'fecha', label: 'Fecha', field: 'fecha', align: 'left' },
         { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left' },
         { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
+        { name: 'cantidad_prestada', label: 'Prestados', field: row => row.cantidad_prestada || 0, align: 'right' },
         { name: 'detalle', label: 'Detalle', field: 'detalle', align: 'left' },
         { name: 'precio', label: 'Precio', field: 'precio', align: 'right' },
         { name: 'estado', label: 'Estado', field: 'estado', align: 'left' }

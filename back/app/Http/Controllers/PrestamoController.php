@@ -22,17 +22,26 @@ class PrestamoController extends Controller
     public function index(Request $request)
     {
         $query = Prestamo::with(['cliente', 'inventario', 'venta', 'retornos.user'])->orderBy('id', 'desc');
-        if ($request->filled('tipo')) {
-            $query->where('tipo', $request->tipo);
-        }
-        if ($request->filled('tipo_venta')) {
-            $tipoVenta = $request->validate([
-                'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
-            ])['tipo_venta'] ?? null;
+        $validated = $request->validate([
+            'tipo' => ['nullable', Rule::in(['prestamo', 'venta'])],
+            'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
+            'inventario_id' => 'nullable|exists:inventarios,id',
+            'search' => 'nullable|string|max:255',
+            'estado' => ['nullable', Rule::in(['VENDIDO', 'EN PRESTAMO', 'PARCIAL', 'RETORNADO', 'ANULADO', 'BAJA'])],
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+            'per_page' => 'nullable|integer|min:1|max:200',
+            'page' => 'nullable|integer|min:1',
+        ]);
 
-            if ($tipoVenta) {
-                $query->whereHas('cliente', fn ($q) => $q->where('tipo_cliente', $tipoVenta));
-            }
+        $this->applyPrestamoFilters($query, $validated);
+
+        if (! empty($validated['per_page'])) {
+            $prestamos = $query
+                ->paginate((int) $validated['per_page'])
+                ->through(fn (Prestamo $prestamo) => $this->withResumen($prestamo));
+
+            return response()->json($prestamos);
         }
 
         return $query->get()->map(fn (Prestamo $prestamo) => $this->withResumen($prestamo))->values();
@@ -384,31 +393,17 @@ class PrestamoController extends Controller
             'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
             'tipo' => ['nullable', Rule::in(['prestamo', 'venta'])],
             'estado' => ['nullable', Rule::in(['VENDIDO', 'EN PRESTAMO', 'PARCIAL', 'RETORNADO', 'ANULADO', 'BAJA'])],
+            'inventario_id' => 'nullable|exists:inventarios,id',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
         ]);
 
         $tipoVenta = $validated['tipo_venta'] ?? 'detalle';
         $query = Prestamo::with(['cliente', 'inventario', 'venta', 'retornos.user', 'user'])
-            ->whereHas('cliente', fn ($q) => $q->where('tipo_cliente', $tipoVenta))
             ->orderByDesc('fecha')
             ->orderByDesc('id');
 
-        if (! empty($validated['tipo'])) {
-            $query->where('tipo', $validated['tipo']);
-        }
-
-        if (! empty($validated['estado'])) {
-            $query->where('estado', $validated['estado']);
-        }
-
-        if (! empty($validated['date_from'])) {
-            $query->whereDate('fecha', '>=', $validated['date_from']);
-        }
-
-        if (! empty($validated['date_to'])) {
-            $query->whereDate('fecha', '<=', $validated['date_to']);
-        }
+        $this->applyPrestamoFilters($query, [...$validated, 'tipo_venta' => $tipoVenta]);
 
         $prestamos = $query->get()->map(fn (Prestamo $prestamo) => $this->withResumen($prestamo));
         $resumen = $this->reporteResumen($prestamos);
@@ -499,6 +494,51 @@ class PrestamoController extends Controller
             'fisico' => $fisico,
             'observacion' => $observacion,
         ]);
+    }
+
+    private function applyPrestamoFilters($query, array $filters): void
+    {
+        if (! empty($filters['tipo'])) {
+            $query->where('tipo', $filters['tipo']);
+        }
+
+        if (! empty($filters['tipo_venta'])) {
+            $query->whereHas('cliente', fn ($q) => $q->where('tipo_cliente', $filters['tipo_venta']));
+        }
+
+        if (! empty($filters['inventario_id'])) {
+            $query->where('inventario_id', $filters['inventario_id']);
+        }
+
+        if (! empty($filters['estado'])) {
+            $query->where('estado', $filters['estado']);
+        }
+
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('fecha', '>=', $filters['date_from']);
+        }
+
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('fecha', '<=', $filters['date_to']);
+        }
+
+        if (! empty($filters['search'])) {
+            $search = trim((string) $filters['search']);
+            $query->where(function ($q) use ($search) {
+                if (ctype_digit($search)) {
+                    $q->where('id', (int) $search);
+                }
+
+                $q->orWhere('observacion', 'like', "%{$search}%")
+                    ->orWhere('fecha', 'like', "%{$search}%")
+                    ->orWhereHas('cliente', function ($cliente) use ($search) {
+                        $cliente->where('nombre', 'like', "%{$search}%")
+                            ->orWhere('ci', 'like', "%{$search}%")
+                            ->orWhere('telefono', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('inventario', fn ($inventario) => $inventario->where('nombre', 'like', "%{$search}%"));
+            });
+        }
     }
 
     private function withResumen(Prestamo $prestamo): Prestamo
