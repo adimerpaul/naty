@@ -1231,7 +1231,7 @@ Oruro</div>
       const parts = S(value).split('T')[0].split('-');
       return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : S(value);
     };
-    const tipo = row.tipo === 'venta' ? 'Venta Material' : 'Prestamo Material';
+    const tipo = row.tipo === 'venta' ? 'Venta Material' : 'Devolución de garantía';
     const html = `
       <div style="width:300px;font-family:'Times New Roman',serif;font-size:14px;line-height:1.2;color:#111;">
         <div style="text-align:center;font-size:18px;font-weight:bold;">${tipo}</div>

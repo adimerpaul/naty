@@ -75,7 +75,9 @@ class VentaController extends Controller
 
     public function show(Venta $venta)
     {
-        $venta->load(['caja', 'detalles', 'pagos', 'user', 'prestamos.inventario']);
+        $venta->load(['caja', 'detalles', 'pagos', 'user', 'prestamos.inventario', 'cliente']);
+        $venta->setAttribute('cliente_lat', $venta->cliente?->lat);
+        $venta->setAttribute('cliente_lng', $venta->cliente?->lng);
 
         return $this->withResumen($venta);
     }

@@ -24,6 +24,7 @@ class Prestamo extends Model
         'tipo',
         'estado',
         'efectivo',
+        'monto_qr',
         'fisico',
         'observacion',
         'cantidad',
@@ -92,7 +93,7 @@ class Prestamo extends Model
 
     public function getFisicoRecibidoAttribute(): float
     {
-        $monto = round((float) $this->efectivo, 2);
+        $monto = round((float) $this->efectivo + (float) $this->monto_qr, 2);
         if ($monto <= 0 && is_numeric($this->fisico)) {
             $monto = round((float) $this->fisico, 2);
         }

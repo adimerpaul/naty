@@ -8,7 +8,7 @@
         </div>
         <q-space />
         <q-btn color="primary" no-caps icon="add" label="Nueva venta" @click="irNuevaVenta" class="q-mr-sm" />
-        <q-btn v-if="tipoVenta !== 'detalle'" color="secondary" no-caps icon="account_balance_wallet" label="Ingreso / Egreso" @click="abrirMovimiento" class="q-mr-sm" />
+        <q-btn color="secondary" no-caps icon="account_balance_wallet" label="Ingreso / Egreso" @click="abrirMovimiento" class="q-mr-sm" />
         <q-btn color="grey-8" flat no-caps icon="refresh" label="Actualizar" @click="ventasGet" :loading="loading" />
       </q-card-section>
     </q-card>

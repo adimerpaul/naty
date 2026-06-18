@@ -57,10 +57,10 @@ class PrestamoController extends Controller
             'venta_id' => 'nullable|exists:ventas,id',
             'cantidad' => 'required|integer|min:1',
             'efectivo' => 'nullable|numeric|min:0',
+            'monto_qr' => 'nullable|numeric|min:0',
             'fisico' => 'nullable|string|max:255',
             'observacion' => 'nullable|string|max:255',
             'tipo_venta' => ['nullable', Rule::in(['detalle', 'local'])],
-            'metodo_pago' => ['nullable', Rule::in(['efectivo', 'qr'])],
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
@@ -79,11 +79,13 @@ class PrestamoController extends Controller
             $inv->update(['cantidad' => $inv->cantidad - (int) $validated['cantidad']]);
 
             $ventaGenerada = null;
+            $montoEfectivo = round((float) ($validated['efectivo'] ?? 0), 2);
+            $montoQr = round((float) ($validated['monto_qr'] ?? 0), 2);
             $montoPrestamo = $this->montoFisicoRecibido($validated);
             if ($validated['tipo'] === 'venta') {
                 $monto = $montoPrestamo;
                 if ($monto <= 0) {
-                    return response()->json(['message' => 'Debe registrar efectivo para venta de material'], 422);
+                    return response()->json(['message' => 'Debe registrar monto para venta de material'], 422);
                 }
                 $ventaGenerada = Venta::create([
                     'caja_id' => 1,
@@ -111,23 +113,39 @@ class PrestamoController extends Controller
                     'subtotal' => round($monto, 2),
                     'estado' => true,
                 ]);
-                Pago::create([
-                    'venta_id' => $ventaGenerada->id,
-                    'user_id' => $request->user()->id ?? null,
-                    'nro_cuota' => 1,
-                    'monto' => round($monto, 2),
-                    'fecha_programada' => now()->toDateString(),
-                    'fecha_pago' => now(),
-                    'metodo' => $validated['metodo_pago'] ?? 'efectivo',
-                    'estado' => 'PAGADO',
-                ]);
+                $nroCuota = 1;
+                if ($montoEfectivo > 0) {
+                    Pago::create([
+                        'venta_id' => $ventaGenerada->id,
+                        'user_id' => $request->user()->id ?? null,
+                        'nro_cuota' => $nroCuota++,
+                        'monto' => $montoEfectivo,
+                        'fecha_programada' => now()->toDateString(),
+                        'fecha_pago' => now(),
+                        'metodo' => 'efectivo',
+                        'estado' => 'PAGADO',
+                    ]);
+                }
+                if ($montoQr > 0) {
+                    Pago::create([
+                        'venta_id' => $ventaGenerada->id,
+                        'user_id' => $request->user()->id ?? null,
+                        'nro_cuota' => $nroCuota,
+                        'monto' => $montoQr,
+                        'fecha_programada' => now()->toDateString(),
+                        'fecha_pago' => now(),
+                        'metodo' => 'qr',
+                        'estado' => 'PAGADO',
+                    ]);
+                }
             }
 
             $prestamo = Prestamo::create([
                 'fecha' => $validated['fecha'] ?? now()->toDateString(),
                 'tipo' => $validated['tipo'],
                 'estado' => $validated['tipo'] === 'venta' ? 'VENDIDO' : 'EN PRESTAMO',
-                'efectivo' => $montoPrestamo,
+                'efectivo' => $montoEfectivo,
+                'monto_qr' => $montoQr,
                 'fisico' => $validated['fisico'] ?? '',
                 'observacion' => $validated['observacion'] ?? '',
                 'cantidad' => (int) $validated['cantidad'],
@@ -574,7 +592,9 @@ class PrestamoController extends Controller
 
     private function montoFisicoRecibido(array $validated): float
     {
-        $monto = round((float) ($validated['efectivo'] ?? 0), 2);
+        $efectivo = round((float) ($validated['efectivo'] ?? 0), 2);
+        $qr = round((float) ($validated['monto_qr'] ?? 0), 2);
+        $monto = $efectivo + $qr;
         if ($monto <= 0 && isset($validated['fisico']) && is_numeric($validated['fisico'])) {
             $monto = round((float) $validated['fisico'], 2);
         }
@@ -584,7 +604,7 @@ class PrestamoController extends Controller
 
     private function montoPrestamo(Prestamo $prestamo): float
     {
-        $monto = round((float) $prestamo->efectivo, 2);
+        $monto = round((float) $prestamo->efectivo + (float) $prestamo->monto_qr, 2);
         if ($monto <= 0 && is_numeric($prestamo->fisico)) {
             $monto = round((float) $prestamo->fisico, 2);
         }

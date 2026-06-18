@@ -223,7 +223,7 @@
                   type="number"
                   min="0"
                   step="0.01"
-                  label="Monto recibido"
+                  label="Efectivo (Bs)"
                   @update:model-value="pres.efectivo_manual = true"
                 >
                   <template #append>
@@ -231,18 +231,16 @@
                   </template>
                 </q-input>
               </div>
-              <div class="col-12 col-md-4" v-if="pres.tipo === 'venta'">
-                <q-select
-                  v-model="pres.metodo_pago"
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="pres.monto_qr"
                   dense
                   outlined
-                  emit-value
-                  map-options
-                  :options="[
-                    { label: 'Efectivo', value: 'efectivo' },
-                    { label: 'QR', value: 'qr' }
-                  ]"
-                  label="Metodo"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  label="QR (Bs)"
+                  @update:model-value="pres.efectivo_manual = true"
                 />
               </div>
               <div class="col-12 col-md-8">
@@ -277,7 +275,10 @@
                     </q-td>
                   </template>
                   <template #body-cell-efectivo="props">
-                    <q-td :props="props" class="text-right">{{ money(props.row.efectivo) }}</q-td>
+                    <q-td :props="props" class="text-right">{{ props.row.efectivo > 0 ? money(props.row.efectivo) : '-' }}</q-td>
+                  </template>
+                  <template #body-cell-monto_qr="props">
+                    <q-td :props="props" class="text-right">{{ props.row.monto_qr > 0 ? money(props.row.monto_qr) : '-' }}</q-td>
                   </template>
                   <template #body-cell-actions="props">
                     <q-td :props="props">
@@ -522,9 +523,9 @@ export default {
         cantidad: 1,
         tipo: 'prestamo',
         tipo_venta: 'detalle',
-        efectivo: 0,
+        efectivo: null,
+        monto_qr: null,
         efectivo_manual: false,
-        metodo_pago: 'efectivo',
         fisico: '',
         observacion: '',
         fecha: new Date().toISOString().slice(0, 10)
@@ -549,7 +550,8 @@ export default {
         { name: 'inventario_nombre', label: 'Inventario', field: 'inventario_nombre', align: 'left' },
         { name: 'cantidad', label: 'Cantidad', field: 'cantidad', align: 'right' },
         { name: 'tipo', label: 'Tipo', field: 'tipo', align: 'left' },
-        { name: 'efectivo', label: 'Monto recibido', field: 'efectivo', align: 'right' },
+        { name: 'efectivo', label: 'Efectivo', field: 'efectivo', align: 'right' },
+        { name: 'monto_qr', label: 'QR', field: 'monto_qr', align: 'right' },
         { name: 'observacion', label: 'Fisico recibido', field: 'observacion', align: 'left' }
       ],
       colsRetornos: [
@@ -629,9 +631,9 @@ export default {
         cantidad: 1,
         tipo: 'prestamo',
         tipo_venta: this?.tipoCliente || 'detalle',
-        efectivo: 0,
+        efectivo: null,
+        monto_qr: null,
         efectivo_manual: false,
-        metodo_pago: 'efectivo',
         fisico: '',
         observacion: '',
         fecha: new Date().toISOString().slice(0, 10)
@@ -967,8 +969,8 @@ export default {
         this.$alert.error('La cantidad supera el inventario disponible')
         return
       }
-      if (this.pres.tipo === 'venta' && Number(this.pres.efectivo || 0) <= 0) {
-        this.$alert.error('Debe registrar monto efectivo para venta de material')
+      if (this.pres.tipo === 'venta' && Number(this.pres.efectivo || 0) <= 0 && Number(this.pres.monto_qr || 0) <= 0) {
+        this.$alert.error('Debe registrar monto (efectivo o QR) para venta de material')
         return
       }
 
@@ -980,7 +982,7 @@ export default {
         cantidad: Number(this.pres.cantidad || 0),
         tipo: this.pres.tipo,
         efectivo: Number(this.pres.efectivo || 0),
-        metodo_pago: this.pres.metodo_pago || 'efectivo',
+        monto_qr: Number(this.pres.monto_qr || 0),
         observacion: this.pres.observacion || '',
         fecha: this.pres.fecha
       })
@@ -1009,7 +1011,7 @@ export default {
             cantidad: item.cantidad,
             tipo: item.tipo,
             efectivo: item.efectivo,
-            metodo_pago: item.metodo_pago,
+            monto_qr: item.monto_qr,
             fisico: '',
             observacion: item.observacion,
             tipo_venta: this.tipoCliente,

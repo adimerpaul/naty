@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="width: 720px; max-width: 96vw;">
+    <q-card style="width: 800px; max-width: 96vw;">
       <q-card-section class="row items-center q-pb-none">
         <div>
           <div class="text-subtitle1 text-weight-bold">Hoja de ruta #{{ venta?.id || row?.id }}</div>
@@ -50,6 +50,62 @@
             <div class="col-12">
               <q-input v-model="form.hoja_observaciones" dense outlined type="textarea" autogrow label="Observaciones" />
             </div>
+
+            <div class="col-12" v-if="venta">
+              <q-separator class="q-mb-sm" />
+              <div class="row items-center q-gutter-sm q-mb-sm">
+                <q-icon name="place" color="red-6" />
+                <span class="text-caption text-weight-medium">Ubicacion del cliente</span>
+                <q-space />
+                <q-btn
+                  v-if="tieneUbicacion"
+                  dense
+                  no-caps
+                  flat
+                  color="primary"
+                  icon="content_copy"
+                  label="Copiar coordenadas"
+                  size="sm"
+                  @click="copiarCoordenadas"
+                />
+                <q-btn
+                  dense
+                  no-caps
+                  flat
+                  color="green-7"
+                  icon="open_in_new"
+                  label="Ver en Google Maps"
+                  size="sm"
+                  @click="abrirGoogleMaps"
+                />
+              </div>
+
+              <l-map
+                v-if="tieneUbicacion"
+                style="height: 220px; width: 100%; border-radius: 8px;"
+                :zoom="16"
+                :center="mapaCenter"
+                :use-global-leaflet="false"
+              >
+                <l-tile-layer
+                  url="https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                  :subdomains="['0','1','2','3']"
+                  :max-zoom="20"
+                />
+                <l-marker :lat-lng="mapaCenter">
+                  <l-popup>
+                    <div style="min-width: 160px; text-align: center;">
+                      <b>{{ venta.cliente_nombre }}</b><br>
+                      <span style="font-size:11px;">{{ Number(venta.cliente_lat).toFixed(6) }}, {{ Number(venta.cliente_lng).toFixed(6) }}</span>
+                    </div>
+                  </l-popup>
+                </l-marker>
+              </l-map>
+              <div v-else class="text-caption text-grey-5 row items-center q-gutter-xs">
+                <q-icon name="place_off" />
+                <span>Sin coordenadas registradas — se buscara por direccion en Google Maps</span>
+              </div>
+            </div>
           </div>
           <div class="row justify-end q-gutter-sm q-mt-md">
             <q-btn flat no-caps label="Cancelar" v-close-popup />
@@ -62,10 +118,20 @@
 </template>
 
 <script>
+import 'leaflet/dist/leaflet.css'
+import { LMap, LMarker, LPopup, LTileLayer } from '@vue-leaflet/vue-leaflet'
+import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import { Imprimir } from 'src/addons/Imprimir'
+
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow })
 
 export default {
   name: 'HojaRutaDialog',
+  components: { LMap, LTileLayer, LMarker, LPopup },
   props: {
     modelValue: {
       type: Boolean,
@@ -87,6 +153,15 @@ export default {
         { label: 'Noche', value: 'noche' }
       ],
       form: this.emptyForm()
+    }
+  },
+  computed: {
+    tieneUbicacion () {
+      return this.venta?.cliente_lat != null && this.venta?.cliente_lng != null &&
+        this.venta.cliente_lat !== '' && this.venta.cliente_lng !== ''
+    },
+    mapaCenter () {
+      return [Number(this.venta?.cliente_lat), Number(this.venta?.cliente_lng)]
     }
   },
   watch: {
@@ -143,6 +218,24 @@ export default {
       return (venta.prestamos || [])
         .map(p => `${p.cantidad || 0} ${p.inventario?.nombre || 'material'}`)
         .join(', ')
+    },
+    copiarCoordenadas () {
+      const texto = `${Number(this.venta.cliente_lat).toFixed(6)}, ${Number(this.venta.cliente_lng).toFixed(6)}`
+      navigator.clipboard.writeText(texto).then(() => {
+        this.$alert.success('Coordenadas copiadas: ' + texto)
+      }).catch(() => {
+        this.$alert.error('No se pudo copiar al portapapeles')
+      })
+    },
+    abrirGoogleMaps () {
+      let url
+      if (this.tieneUbicacion) {
+        url = `https://www.google.com/maps?q=${Number(this.venta.cliente_lat).toFixed(7)},${Number(this.venta.cliente_lng).toFixed(7)}`
+      } else {
+        const dir = this.form.hoja_direccion || this.venta.cliente_direccion || this.venta.cliente_nombre || ''
+        url = `https://www.google.com/maps/search/${encodeURIComponent(dir)}`
+      }
+      window.open(url, '_blank', 'noopener')
     },
     async guardarEImprimir () {
       if (!this.venta?.id) return
