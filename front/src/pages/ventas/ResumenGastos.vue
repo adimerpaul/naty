@@ -73,40 +73,66 @@
       </div>
     </div>
 
-    <!-- TABLA VENTAS -->
-    <div class="text-subtitle2 text-weight-bold q-mb-sm">Historial de Ventas del Periodo</div>
+<!--    &lt;!&ndash; TABLA VENTAS &ndash;&gt;-->
+<!--    <div class="text-subtitle2 text-weight-bold q-mb-sm">Historial de Ventas del Periodo</div>-->
+<!--    <q-table-->
+<!--      dense-->
+<!--      flat-->
+<!--      bordered-->
+<!--      :rows="ventas"-->
+<!--      :columns="colsVentas"-->
+<!--      row-key="id"-->
+<!--      :loading="loading"-->
+<!--      v-model:pagination="paginationVentas"-->
+<!--      :rows-per-page-options="[10, 25, 50, 0]"-->
+<!--      class="q-mb-lg"-->
+<!--    >-->
+<!--      <template #body-cell-tipo_venta="props">-->
+<!--        <q-td :props="props">-->
+<!--          <q-chip-->
+<!--            dense-->
+<!--            :color="props.row.tipo_venta === 'local' ? 'green-7' : 'blue-7'"-->
+<!--            text-color="white"-->
+<!--            size="sm"-->
+<!--          >-->
+<!--            {{ props.row.tipo_venta === 'local' ? 'LOCAL' : 'DETALLE' }}-->
+<!--          </q-chip>-->
+<!--        </q-td>-->
+<!--      </template>-->
+<!--      <template #body-cell-total="props">-->
+<!--        <q-td :props="props" class="text-right">{{ money(props.row.total) }}</q-td>-->
+<!--      </template>-->
+<!--      <template #body-cell-total_pagado="props">-->
+<!--        <q-td :props="props" class="text-right text-positive">{{ money(props.row.total_pagado) }}</q-td>-->
+<!--      </template>-->
+<!--      <template #body-cell-saldo_pendiente="props">-->
+<!--        <q-td :props="props" class="text-right text-orange-8">{{ money(props.row.saldo_pendiente) }}</q-td>-->
+<!--      </template>-->
+<!--    </q-table>-->
+
+    <!-- TABLA PAGOS DEL PERIODO -->
+    <div class="text-subtitle2 text-weight-bold q-mb-sm">Pagos / Cobros del Periodo</div>
     <q-table
       dense
       flat
       bordered
-      :rows="ventas"
-      :columns="colsVentas"
+      :rows="pagos"
+      :columns="colsPagos"
       row-key="id"
       :loading="loading"
-      v-model:pagination="paginationVentas"
+      v-model:pagination="paginationPagos"
       :rows-per-page-options="[10, 25, 50, 0]"
       class="q-mb-lg"
     >
+      <template #body-cell-monto="props">
+        <q-td :props="props" class="text-right text-positive text-weight-bold">{{ money(props.row.monto) }}</q-td>
+      </template>
       <template #body-cell-tipo_venta="props">
         <q-td :props="props">
-          <q-chip
-            dense
-            :color="props.row.tipo_venta === 'local' ? 'green-7' : 'blue-7'"
-            text-color="white"
-            size="sm"
-          >
+          <q-chip dense :color="props.row.tipo_venta === 'local' ? 'green-7' : 'blue-7'" text-color="white" size="sm">
             {{ props.row.tipo_venta === 'local' ? 'LOCAL' : 'DETALLE' }}
           </q-chip>
         </q-td>
-      </template>
-      <template #body-cell-total="props">
-        <q-td :props="props" class="text-right">{{ money(props.row.total) }}</q-td>
-      </template>
-      <template #body-cell-total_pagado="props">
-        <q-td :props="props" class="text-right text-positive">{{ money(props.row.total_pagado) }}</q-td>
-      </template>
-      <template #body-cell-saldo_pendiente="props">
-        <q-td :props="props" class="text-right text-orange-8">{{ money(props.row.saldo_pendiente) }}</q-td>
       </template>
     </q-table>
 
@@ -143,9 +169,11 @@ export default {
       loading: false,
       ventas: [],
       movimientos: [],
+      pagos: [],
       totales: { total_ventas: 0, total_pagado: 0, total_saldo: 0, total_gastos: 0 },
       paginationVentas: { page: 1, rowsPerPage: 25 },
       paginationMovimientos: { page: 1, rowsPerPage: 25 },
+      paginationPagos: { page: 1, rowsPerPage: 25 },
       filters: {
         date_from: today,
         date_to: today,
@@ -161,6 +189,16 @@ export default {
         { name: 'saldo_pendiente', label: 'Saldo', field: 'saldo_pendiente', align: 'right' },
         { name: 'usuario', label: 'Usuario', field: row => row.user?.name || '-', align: 'left' },
         { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' }
+      ],
+      colsPagos: [
+        { name: 'id', label: 'Id', field: 'id', align: 'left' },
+        { name: 'created_at', label: 'Fecha/Hora', field: 'created_at', align: 'left', format: v => v ? String(v).slice(0, 16).replace('T', ' ') : '-' },
+        { name: 'tipo_venta', label: 'Tipo', field: 'tipo_venta', align: 'left' },
+        { name: 'cliente_nombre', label: 'Cliente', field: 'cliente_nombre', align: 'left' },
+        { name: 'monto', label: 'Monto', field: 'monto', align: 'right' },
+        { name: 'metodo', label: 'Metodo', field: 'metodo', align: 'left' },
+        { name: 'observacion', label: 'Observacion', field: 'observacion', align: 'left' },
+        { name: 'usuario', label: 'Usuario', field: 'usuario', align: 'left' }
       ],
       colsMovimientos: [
         { name: 'id', label: 'Id', field: 'id', align: 'left' },
@@ -183,6 +221,7 @@ export default {
         .then(r => {
           this.ventas = r.data.ventas || []
           this.movimientos = r.data.movimientos || []
+          this.pagos = r.data.pagos || []
           this.totales = r.data.totales || { total_ventas: 0, total_pagado: 0, total_saldo: 0, total_gastos: 0 }
         })
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cargar el resumen'))
@@ -203,6 +242,18 @@ export default {
           <td style="text-align:right">${this.money(v.total_pagado)}</td>
           <td style="text-align:right">${this.money(v.saldo_pendiente)}</td>
           <td>${v.user?.name || '-'}</td>
+        </tr>`).join('')
+
+      const filasPagos = this.pagos.map(p => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.created_at ? String(p.created_at).slice(0, 16).replace('T', ' ') : ''}</td>
+          <td>${p.tipo_venta === 'local' ? 'LOCAL' : 'DETALLE'}</td>
+          <td>${p.cliente_nombre || '-'}</td>
+          <td style="text-align:right; color:green"><b>${this.money(p.monto)}</b></td>
+          <td>${p.metodo || '-'}</td>
+          <td>${p.observacion || '-'}</td>
+          <td>${p.usuario || '-'}</td>
         </tr>`).join('')
 
       const filasGastos = this.movimientos.map(m => `
@@ -228,6 +279,14 @@ export default {
               </tr>
             </thead>
             <tbody>${filasVentas || '<tr><td colspan="8" style="text-align:center">Sin ventas</td></tr>'}</tbody>
+          </table>
+          <br/>
+          <h3>PAGOS / COBROS DEL PERIODO</h3>
+          <table border="1" cellpadding="3" cellspacing="0" width="100%" style="border-collapse:collapse; font-size:11px;">
+            <thead style="background:#eee;">
+              <tr><th>Id</th><th>Fecha/Hora</th><th>Tipo</th><th>Cliente</th><th>Monto</th><th>Metodo</th><th>Observacion</th><th>Usuario</th></tr>
+            </thead>
+            <tbody>${filasPagos || '<tr><td colspan="8" style="text-align:center">Sin pagos</td></tr>'}</tbody>
           </table>
           <br/>
           <h3>DETALLE DE GASTOS / EGRESOS DE CAJA</h3>

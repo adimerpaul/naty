@@ -225,14 +225,44 @@ class CajaController extends Controller
 
         $movimientos = $movimientosQuery->get();
 
+        // Pagos individuales realizados en el periodo (por fecha de pago, no de venta)
+        $pagosQuery = DB::table('pagos as p')
+            ->join('ventas as v', 'v.id', '=', 'p.venta_id')
+            ->leftJoin('users as u', 'u.id', '=', 'p.user_id')
+            ->whereNull('p.deleted_at')
+            ->where('p.estado', 'PAGADO')
+            ->whereBetween('p.created_at', [$startDt, $endDt])
+            ->whereIn('v.tipo_venta', ['detalle', 'local'])
+            ->selectRaw("
+                p.id,
+                p.venta_id,
+                p.monto,
+                p.metodo,
+                p.nro_cuota,
+                p.observacion,
+                p.created_at,
+                v.tipo_venta,
+                v.cliente_nombre,
+                v.total as venta_total,
+                COALESCE(u.name, u.username, '-') as usuario
+            ")
+            ->orderBy('p.created_at', 'desc');
+
+        if ($userId) {
+            $pagosQuery->where('p.user_id', $userId);
+        }
+
+        $pagos = $pagosQuery->get();
+
         $totalVentas  = $ventas->sum('total');
-        $totalPagado  = $ventas->sum('total_pagado');
+        $totalPagado  = $pagos->sum('monto');
         $totalSaldo   = $ventas->sum('saldo_pendiente');
         $totalGastos  = $movimientos->sum('monto_real');
 
         return response()->json([
             'ventas'      => $ventas->values(),
             'movimientos' => $movimientos->values(),
+            'pagos'       => $pagos->values(),
             'totales'     => [
                 'total_ventas'  => round((float) $totalVentas, 2),
                 'total_pagado'  => round((float) $totalPagado, 2),
