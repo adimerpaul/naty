@@ -92,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/cajas', [CajaController::class, 'index']);
     Route::get('/cajas/resumen', [CajaController::class, 'resumen']);
+    Route::get('/cajas/resumen-gastos', [CajaController::class, 'resumenGastos']);
     Route::get('/cajas/{caja}/movimientos', [CajaController::class, 'movimientos']);
     Route::post('/cajas/movimientos', [CajaController::class, 'registrarMovimiento']);
 

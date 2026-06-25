@@ -195,13 +195,13 @@
           <div class="text-caption text-grey-7">Ventas realizadas entre fechas para esta misma pantalla</div>
         </div>
         <div class="col-12 col-md-2">
-          <q-toggle v-model="historial.one_day" dense label="Solo un dia" @update:model-value="syncHistorialUnDia" />
+          <q-input v-model="historial.date_from" dense outlined type="date" :label="historial.one_day ? 'Fecha' : 'Desde'" />
+        </div>
+        <div class="col-12 col-md-2" v-if="!historial.one_day">
+          <q-input v-model="historial.date_to" dense outlined type="date" label="Hasta" />
         </div>
         <div class="col-12 col-md-2">
-          <q-input v-model="historial.date_from" dense outlined type="date" :label="historial.one_day ? 'Fecha' : 'Desde'" @update:model-value="syncHistorialUnDia" />
-        </div>
-        <div class="col-12 col-md-2">
-          <q-input v-model="historial.date_to" dense outlined type="date" label="Hasta" :disable="historial.one_day" />
+          <q-toggle v-model="historial.one_day" dense label="Solo un dia" />
         </div>
         <div class="col-12 col-md-2 text-right">
           <q-btn color="primary" no-caps icon="refresh" label="Actualizar historial" :loading="loadingHistorial" @click="cargarHistorial" />
@@ -252,13 +252,22 @@
           <template #body-cell-total="props">
             <q-td :props="props" class="text-right text-weight-bold">{{ money(props.row.total) }} Bs</q-td>
           </template>
+          <template #body-cell-monto_efectivo="props">
+            <q-td :props="props" class="text-right">{{ money(props.row.monto_efectivo) }} Bs</q-td>
+          </template>
+          <template #body-cell-monto_qr="props">
+            <q-td :props="props" class="text-right">{{ money(props.row.monto_qr) }} Bs</q-td>
+          </template>
           <template #body-cell-user="props">
             <q-td :props="props">{{ props.row.user?.name || props.row.user?.username || '-' }}</q-td>
           </template>
           <template #bottom-row>
             <q-tr>
               <q-td colspan="5" class="text-right text-weight-bold">Total periodo</q-td>
+              <q-td />
               <q-td class="text-right text-weight-bold text-primary">{{ money(totalHistorial) }} Bs</q-td>
+              <q-td class="text-right text-weight-bold text-green-8">{{ money(totalEfectivoHistorial) }} Bs</q-td>
+              <q-td class="text-right text-weight-bold text-blue-8">{{ money(totalQrHistorial) }} Bs</q-td>
               <q-td />
             </q-tr>
           </template>
@@ -681,6 +690,8 @@ export default {
         { name: 'prestamo', label: 'Prestamo', field: row => row.tiene_prestamo, align: 'left' },
         { name: 'facturado', label: 'Facturado', field: 'facturado', align: 'left' },
         { name: 'total', label: 'Total', field: 'total', align: 'right' },
+        { name: 'monto_efectivo', label: 'Efectivo', field: 'monto_efectivo', align: 'right' },
+        { name: 'monto_qr', label: 'QR', field: 'monto_qr', align: 'right' },
         { name: 'user', label: 'Usuario', field: row => row.user?.name || '-', align: 'left' }
       ],
       colsDetalle: [
@@ -729,7 +740,9 @@ export default {
     montoPagado () { return Number(this.form.monto_efectivo || 0) + Number(this.form.monto_qr || 0) },
     deuda () { return Math.max(0, Math.round((this.total - this.montoPagado) * 100) / 100) },
     tipoPago () { return this.deuda > 0 ? 'credito' : 'contado' },
-    totalHistorial () { return this.historialRows.reduce((acc, row) => acc + Number(row.total || 0), 0) }
+    totalHistorial () { return this.historialRows.reduce((acc, row) => acc + Number(row.total || 0), 0) },
+    totalEfectivoHistorial () { return this.historialRows.reduce((acc, row) => acc + Number(row.monto_efectivo || 0), 0) },
+    totalQrHistorial () { return this.historialRows.reduce((acc, row) => acc + Number(row.monto_qr || 0), 0) }
   },
   mounted () {
     this.cargarTodo()
@@ -795,14 +808,13 @@ export default {
       this.inventarios = (inv.data || []).filter(i => (i.cantidad || 0) > 0 && (i.estado || '').toUpperCase() === 'ACTIVO')
     },
     async cargarHistorial () {
-      this.syncHistorialUnDia()
       this.loadingHistorial = true
       try {
         const res = await this.$axios.get('ventas', {
           params: {
             tipo_venta: this.tipoVenta,
             date_from: this.historial.date_from,
-            date_to: this.historial.date_to
+            date_to: this.historial.one_day ? this.historial.date_from : this.historial.date_to
           }
         })
         this.historialRows = res.data || []
@@ -810,11 +822,6 @@ export default {
         this.$alert.error(e.response?.data?.message || 'No se pudo cargar historial de ventas')
       } finally {
         this.loadingHistorial = false
-      }
-    },
-    syncHistorialUnDia () {
-      if (this.historial.one_day) {
-        this.historial.date_to = this.historial.date_from
       }
     },
     filtrarClientes (val, update) {

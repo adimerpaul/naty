@@ -436,13 +436,13 @@
               />
             </div>
             <div class="col-12 col-md-4">
-              <q-toggle v-model="reporte.unDia" dense label="Solo un dia" @update:model-value="syncReporteUnDia" />
+              <q-input v-model="reporte.date_from" dense outlined type="date" :label="reporte.unDia ? 'Fecha' : 'Desde'" />
+            </div>
+            <div class="col-12 col-md-4" v-if="!reporte.unDia">
+              <q-input v-model="reporte.date_to" dense outlined type="date" label="Hasta" />
             </div>
             <div class="col-12 col-md-4">
-              <q-input v-model="reporte.date_from" dense outlined type="date" :label="reporte.unDia ? 'Fecha' : 'Desde'" @update:model-value="syncReporteUnDia" />
-            </div>
-            <div class="col-12 col-md-4">
-              <q-input v-model="reporte.date_to" dense outlined type="date" label="Hasta" :disable="reporte.unDia" />
+              <q-toggle v-model="reporte.unDia" dense label="Solo un dia" />
             </div>
           </div>
           <div class="row justify-end q-gutter-sm q-mt-md">
@@ -748,19 +748,14 @@ export default {
       }
       this.dialogReporte = true
     },
-    syncReporteUnDia () {
-      if (this.reporte.unDia) {
-        this.reporte.date_to = this.reporte.date_from
-      }
-    },
     async reporteRowsFiltradas () {
-      this.syncReporteUnDia()
+      const dateTo = this.reporte.unDia ? this.reporte.date_from : this.reporte.date_to
       const r = await this.$axios.get('prestamos', {
         params: this.prestamosParams({
           tipo: this.reporte.tipo,
           estado: this.reporte.estado,
           date_from: this.reporte.date_from,
-          date_to: this.reporte.date_to
+          date_to: dateTo
         }, false)
       })
       return r.data || []
@@ -779,7 +774,7 @@ export default {
           titulo: 'Reporte Prestamos',
           tipoVenta: this.tipoCliente,
           dateFrom: this.reporte.date_from,
-          dateTo: this.reporte.date_to,
+          dateTo: this.reporte.unDia ? this.reporte.date_from : this.reporte.date_to,
           filtro: this.reporteFiltroLabel()
         })
         this.dialogReporte = false
@@ -839,7 +834,7 @@ export default {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `reporte-prestamos-${this.tipoCliente}-${this.reporte.date_from}-${this.reporte.date_to}.xls`
+        a.download = `reporte-prestamos-${this.tipoCliente}-${this.reporte.date_from}-${this.reporte.unDia ? this.reporte.date_from : this.reporte.date_to}.xls`
         document.body.appendChild(a)
         a.click()
         a.remove()
@@ -852,9 +847,9 @@ export default {
       }
     },
     async exportReportePdf () {
-      this.syncReporteUnDia()
       this.loadingPdf = true
       try {
+        const dateTo = this.reporte.unDia ? this.reporte.date_from : this.reporte.date_to
         const res = await this.$axios.get('prestamos/reporte/pdf', {
           params: {
             tipo_venta: this.tipoCliente,
@@ -862,7 +857,7 @@ export default {
             estado: this.reporte.estado,
             inventario_id: this.filtros.inventario_id,
             date_from: this.reporte.date_from,
-            date_to: this.reporte.date_to
+            date_to: dateTo
           },
           responseType: 'blob',
           timeout: 120000
@@ -870,7 +865,7 @@ export default {
         const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
         const a = document.createElement('a')
         a.href = url
-        a.download = `reporte-prestamos-${this.tipoCliente}-${this.reporte.date_from}-${this.reporte.date_to}.pdf`
+        a.download = `reporte-prestamos-${this.tipoCliente}-${this.reporte.date_from}-${this.reporte.unDia ? this.reporte.date_from : this.reporte.date_to}.pdf`
         document.body.appendChild(a)
         a.click()
         a.remove()

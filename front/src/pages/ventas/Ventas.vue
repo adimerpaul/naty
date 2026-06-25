@@ -14,11 +14,11 @@
     </q-card>
 
     <div class="row q-col-gutter-md q-mb-md">
+      <div class="col-12 col-md-2"><q-input v-model="filters.date_from" type="date" dense outlined :label="filters.one_day ? 'Fecha' : 'Desde'" /></div>
+      <div class="col-12 col-md-2" v-if="!filters.one_day"><q-input v-model="filters.date_to" type="date" dense outlined label="Hasta" /></div>
       <div class="col-12 col-md-2">
-        <q-toggle v-model="filters.one_day" dense label="Solo un dia" @update:model-value="syncVentaUnDia" />
+        <q-toggle v-model="filters.one_day" dense label="Solo un dia" />
       </div>
-      <div class="col-12 col-md-2"><q-input v-model="filters.date_from" type="date" dense outlined :label="filters.one_day ? 'Fecha' : 'Desde'" @update:model-value="syncVentaUnDia" /></div>
-      <div class="col-12 col-md-2"><q-input v-model="filters.date_to" type="date" dense outlined label="Hasta" :disable="filters.one_day" /></div>
       <div class="col-12 col-md-2">
         <q-select
           v-model="filters.tipo_movimiento"
@@ -458,13 +458,7 @@ export default {
         this.ventasGet()
       }, 300)
     },
-    syncVentaUnDia () {
-      if (this.filters.one_day) {
-        this.filters.date_to = this.filters.date_from
-      }
-    },
     ventasGet () {
-      this.syncVentaUnDia()
       if (this.filterTimer) {
         clearTimeout(this.filterTimer)
         this.filterTimer = null
@@ -475,7 +469,7 @@ export default {
         params: {
           tipo_venta: this.tipoVenta,
           date_from: this.filters.date_from,
-          date_to: this.filters.date_to,
+          date_to: this.filters.one_day ? this.filters.date_from : this.filters.date_to,
           tipo_movimiento: this.filters.tipo_movimiento,
           tipo_pago: this.filters.tipo_pago,
           metodo_pago: this.filters.metodo_pago,

@@ -81,6 +81,16 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
+        path: '/historial-ventas',
+        component: () => import('pages/ventas/HistorialVentas.vue'),
+        meta: { requiresAuth: true, perm: 'HistorialVentas' }
+      },
+      {
+        path: '/resumen-gastos',
+        component: () => import('pages/ventas/ResumenGastos.vue'),
+        meta: { requiresAuth: true, perm: 'ResumenGastosVentas' }
+      },
+      {
         path: '/almacen',
         component: () => import('pages/almacen/Almacen.vue'),
         meta: { requiresAuth: true }

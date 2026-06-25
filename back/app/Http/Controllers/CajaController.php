@@ -136,6 +136,112 @@ class CajaController extends Controller
         ]);
     }
 
+    public function resumenGastos(Request $request)
+    {
+        $dateFrom = $request->get('date_from', now()->toDateString());
+        $dateTo = $request->get('date_to', now()->toDateString());
+        $userId = $request->get('user_id');
+
+        $startDt = $dateFrom . ' 00:00:00';
+        $endDt   = $dateTo   . ' 23:59:59';
+
+        // Ventas del periodo (tipo detalle o local)
+        $ventasQuery = Venta::with(['detalles', 'user', 'pagos'])
+            ->whereIn('tipo_venta', ['detalle', 'local'])
+            ->where('estado', '!=', 'ANULADA')
+            ->where(function ($q) use ($dateFrom, $dateTo, $startDt, $endDt) {
+                $q->where(function ($q2) use ($dateFrom, $dateTo) {
+                    $q2->whereNotNull('fecha_venta')
+                        ->whereDate('fecha_venta', '>=', $dateFrom)
+                        ->whereDate('fecha_venta', '<=', $dateTo);
+                })->orWhere(function ($q2) use ($startDt, $endDt) {
+                    $q2->whereNull('fecha_venta')
+                        ->whereBetween('created_at', [$startDt, $endDt]);
+                });
+            })
+            ->orderBy('id', 'desc');
+
+        if ($userId) {
+            $ventasQuery->where('user_id', $userId);
+        }
+
+        $ventas = $ventasQuery->get()->map(function (Venta $v) {
+            $pagado = $v->pagos->where('estado', 'PAGADO')->sum('monto');
+            $saldo  = $v->pagos->where('estado', 'PENDIENTE')->sum('monto');
+            return [
+                'id'             => $v->id,
+                'fecha'          => $v->fecha_venta?->format('Y-m-d') ?: optional($v->created_at)->format('Y-m-d'),
+                'hora'           => optional($v->created_at)->format('H:i:s'),
+                'tipo_venta'     => $v->tipo_venta,
+                'cliente_nombre' => $v->cliente_nombre,
+                'total'          => (float) $v->total,
+                'total_pagado'   => round((float) $pagado, 2),
+                'saldo_pendiente'=> round((float) $saldo, 2),
+                'estado'         => $v->estado,
+                'observacion'    => $v->observacion,
+                'user'           => $v->user ? ['id' => $v->user->id, 'name' => $v->user->name ?? $v->user->username] : null,
+                'detalles'       => $v->detalles->map(fn ($d) => [
+                    'id'              => $d->id,
+                    'producto_nombre' => $d->producto_nombre,
+                    'cantidad'        => (float) $d->cantidad,
+                    'precio'          => (float) $d->precio,
+                    'subtotal'        => (float) $d->subtotal,
+                ])->values(),
+            ];
+        });
+
+        // Movimientos de caja (egresos manuales) del periodo
+        $pagos = DB::table('pagos')
+            ->selectRaw('venta_id, SUM(monto) as pagado')
+            ->where('estado', 'PAGADO')
+            ->whereNull('deleted_at')
+            ->groupBy('venta_id');
+
+        $movimientosQuery = DB::table('ventas as v')
+            ->leftJoinSub($pagos, 'pg', fn ($j) => $j->on('pg.venta_id', '=', 'v.id'))
+            ->leftJoin('users as u', 'u.id', '=', 'v.user_id')
+            ->whereNull('v.deleted_at')
+            ->where('v.tipo_venta', 'caja')
+            ->where('v.tipo_movimiento', 'egreso')
+            ->where('v.estado', 'ACTIVA')
+            ->whereBetween('v.created_at', [$startDt, $endDt])
+            ->selectRaw("
+                v.id,
+                v.created_at,
+                v.tipo_movimiento,
+                v.observacion,
+                v.estado,
+                COALESCE(u.name, u.username, '-') as usuario,
+                CASE
+                    WHEN v.tipo_pago = 'credito' THEN COALESCE(pg.pagado, 0)
+                    ELSE COALESCE(pg.pagado, v.total)
+                END as monto_real
+            ")
+            ->orderBy('v.created_at', 'desc');
+
+        if ($userId) {
+            $movimientosQuery->where('v.user_id', $userId);
+        }
+
+        $movimientos = $movimientosQuery->get();
+
+        $totalVentas  = $ventas->sum('total');
+        $totalPagado  = $ventas->sum('total_pagado');
+        $totalSaldo   = $ventas->sum('saldo_pendiente');
+        $totalGastos  = $movimientos->sum('monto_real');
+
+        return response()->json([
+            'ventas'      => $ventas->values(),
+            'movimientos' => $movimientos->values(),
+            'totales'     => [
+                'total_ventas'  => round((float) $totalVentas, 2),
+                'total_pagado'  => round((float) $totalPagado, 2),
+                'total_saldo'   => round((float) $totalSaldo, 2),
+                'total_gastos'  => round((float) $totalGastos, 2),
+            ],
+        ]);
+    }
+
     public function registrarMovimiento(Request $request)
     {
         $validated = $request->validate([

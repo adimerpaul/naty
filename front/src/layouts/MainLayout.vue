@@ -195,23 +195,6 @@
             </q-list>
           </q-menu>
         </q-item>
-                      <q-item
-          dense
-          to="/almacen"
-          exact
-          clickable
-          class="menu-item"
-          active-class="menu-active"
-          v-close-popup
-          v-if="hasPermission('Almacen') || isAdmin"
-        >
-          <q-item-section avatar>
-            <q-icon name="warehouse" class="text-white" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-white">Almacen</q-item-label>
-          </q-item-section>
-        </q-item>
 
         <!-- LOCAL (submenu popup) -->
         <q-item
@@ -261,6 +244,25 @@
               </q-item>
             </q-list>
           </q-menu>
+        </q-item>
+
+        <!-- RESUMEN GASTOS -->
+        <q-item
+          dense
+          to="/resumen-gastos"
+          exact
+          clickable
+          class="naty-menu-item"
+          active-class="naty-menu-active"
+          v-close-popup
+          v-if="hasPermission('ResumenGastosVentas') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="summarize" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Resumen Gastos</q-item-label>
+          </q-item-section>
         </q-item>
 
         <!-- INVENTARIO -->
@@ -332,6 +334,23 @@
           </q-item-section>
           <q-item-section>
             <q-item-label>Cajas</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item
+          dense
+          to="/almacen"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Almacen') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="warehouse" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Almacen</q-item-label>
           </q-item-section>
         </q-item>
 
@@ -407,6 +426,25 @@
           </q-item-section>
           <q-item-section>
             <q-item-label>Dashboard</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <!-- HISTORIAL VENTAS -->
+        <q-item
+          dense
+          to="/historial-ventas"
+          exact
+          clickable
+          class="naty-menu-item"
+          active-class="naty-menu-active"
+          v-close-popup
+          v-if="hasPermission('HistorialVentas') || isAdmin"
+        >
+          <q-item-section avatar>
+            <q-icon name="history" size="sm" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Historial Ventas</q-item-label>
           </q-item-section>
         </q-item>
 
