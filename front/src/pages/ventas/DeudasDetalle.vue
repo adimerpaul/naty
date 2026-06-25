@@ -24,6 +24,7 @@
           outlined
           emit-value
           map-options
+          clearable
           :options="[
             { label: 'Debe mas', value: 'desc' },
             { label: 'Debe menos', value: 'asc' }
@@ -191,8 +192,8 @@ export default {
       rows: [],
       rowSel: null,
       amortForm: { id: null, cliente: '', monto_efectivo: null, monto_qr: null, observacion: '' },
-      pagination: { page: 1, rowsPerPage: 25, sortBy: 'saldo_pendiente', descending: true },
-      filters: { date_from: startOfYear, date_to: today, one_day: false, search: '', sort_deuda: 'desc' },
+      pagination: { page: 1, rowsPerPage: 25, sortBy: null, descending: true },
+      filters: { date_from: startOfYear, date_to: today, one_day: false, search: '', sort_deuda: null },
       columns: [
         { name: 'actions', label: '', align: 'left' },
         { name: 'id', label: 'Venta', field: 'id', align: 'left' },

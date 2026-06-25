@@ -318,8 +318,10 @@ class VentaController extends Controller
             });
         }
 
-        $sort = strtolower((string) $request->get('sort_deuda', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $query->reorder('saldo_pendiente_sql', $sort)->orderBy('id', 'desc');
+        if ($request->filled('sort_deuda')) {
+            $sort = strtolower((string) $request->get('sort_deuda')) === 'asc' ? 'asc' : 'desc';
+            $query->reorder('saldo_pendiente_sql', $sort)->orderBy('id', 'desc');
+        }
         $ventas = $query->get()->map(fn (Venta $v) => $this->withResumen($v));
 
         return $ventas->values();
