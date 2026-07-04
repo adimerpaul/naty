@@ -976,6 +976,34 @@ Oruro</div>
     d.print(mount);
   }
 
+  static printTicketHtmlConImagenes(html, timeoutMs = 4000) {
+    const mount = this.ensureMount();
+    mount.innerHTML = html;
+    const d = new Printd();
+    const imgs = Array.from(mount.querySelectorAll('img'));
+    if (!imgs.length) {
+      d.print(mount);
+      return;
+    }
+    let done = false;
+    let pending = imgs.length;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      d.print(mount);
+    };
+    imgs.forEach(img => {
+      if (img.complete) {
+        pending -= 1;
+        if (pending <= 0) finish();
+        return;
+      }
+      img.addEventListener('load', () => { pending -= 1; if (pending <= 0) finish(); });
+      img.addEventListener('error', () => { pending -= 1; if (pending <= 0) finish(); });
+    });
+    setTimeout(finish, timeoutMs);
+  }
+
   static fichaDespacho(venta) {
     const fecha = new Date(venta.created_at || Date.now());
     const dd = String(fecha.getDate()).padStart(2, '0');
@@ -1189,7 +1217,7 @@ Oruro</div>
     const html = `
       <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
         <div style="text-align:center;">
-          <div>H/R</div>
+          <div style="font-size:16px;font-weight:bold;">Hoja de Ruta</div>
           <div>Nro ${venta.id}</div>
         </div>
         <table style="width:100%;margin-top:6px;">
@@ -1224,6 +1252,34 @@ Oruro</div>
       </div>
     `;
     this.printTicketHtml(html);
+  }
+
+  static hojaRutaMapa(venta) {
+    const ORURO_CENTER = [-17.9645186, -67.124877];
+    let lat = Number(venta.hoja_lat ?? venta.cliente_lat);
+    let lng = Number(venta.hoja_lng ?? venta.cliente_lng);
+    const sinUbicacion = !Number.isFinite(lat) || !Number.isFinite(lng);
+    if (sinUbicacion) {
+      [lat, lng] = ORURO_CENTER;
+    }
+    const zoom = sinUbicacion ? 13 : 16;
+    const mapaUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=380x380&maptype=mapnik&markers=${lat},${lng},red-pushpin`;
+    const html = `
+      <div style="width:300px;font-family: 'Times New Roman', serif; font-size:14px;">
+        <div style="text-align:center;">
+          <div style="font-size:16px;font-weight:bold;">Hoja de Ruta</div>
+          <div>Nro ${venta.id} - Mapa</div>
+        </div>
+        <hr>
+        <div style="margin-bottom:6px;"><b>Nombre:</b> ${venta.cliente_nombre || '-'}</div>
+        <div style="margin-bottom:6px;"><b>Direccion:</b> ${venta.hoja_direccion || venta.cliente_direccion || '-'}</div>
+        <img src="${mapaUrl}" style="width:100%;border-radius:6px;" crossorigin="anonymous" />
+        <div style="margin-top:6px;font-size:12px;">
+          <b>Coordenadas:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}${sinUbicacion ? ' (centro de Oruro por defecto)' : ''}
+        </div>
+      </div>
+    `;
+    this.printTicketHtmlConImagenes(html);
   }
 
   static prestamoMaterialTicket(row) {

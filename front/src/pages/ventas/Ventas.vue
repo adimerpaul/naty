@@ -133,6 +133,8 @@
             :row="props.row"
             @view="verVenta"
             @route-sheet="abrirHojaRuta"
+            @print-route-sheet="imprimirHojaRuta"
+            @print-route-map="imprimirHojaRutaMapa"
             @print="imprimirFicha"
             @print-tax="imprimirImpuestos"
             @cancel="anularVenta"
@@ -152,6 +154,8 @@
             class="q-mr-sm"
             @view="verVenta"
             @route-sheet="abrirHojaRuta"
+            @print-route-sheet="imprimirHojaRuta"
+            @print-route-map="imprimirHojaRutaMapa"
             @print="imprimirFicha"
             @print-tax="imprimirImpuestos"
             @cancel="anularVenta"
@@ -582,6 +586,22 @@ export default {
         Imprimir.fichaDespacho(venta)
       } catch (e) {
         this.$alert.error(e.response?.data?.message || 'No se pudo imprimir ficha')
+      }
+    },
+    async imprimirHojaRuta(row) {
+      try {
+        const venta = await this.getVenta(row.id)
+        Imprimir.hojaRuta(venta)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo imprimir la hoja de ruta')
+      }
+    },
+    async imprimirHojaRutaMapa(row) {
+      try {
+        const venta = await this.getVenta(row.id)
+        Imprimir.hojaRutaMapa(venta)
+      } catch (e) {
+        this.$alert.error(e.response?.data?.message || 'No se pudo imprimir el mapa')
       }
     },
     imprimirImpuestos (row) {
