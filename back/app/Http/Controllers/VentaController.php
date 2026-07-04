@@ -116,10 +116,12 @@ class VentaController extends Controller
         $validated = $request->validate([
             'hoja_fecha_entrega' => 'nullable|date',
             'hoja_turno' => 'nullable|string|max:100',
-            'hoja_hora' => 'nullable|date_format:H:i',
+            'hoja_hora' => 'nullable|string|max:50',
             'hoja_telefono_1' => 'nullable|string|max:50',
             'hoja_telefono_2' => 'nullable|string|max:50',
             'hoja_direccion' => 'nullable|string|max:255',
+            'hoja_lat' => 'nullable|numeric|between:-90,90',
+            'hoja_lng' => 'nullable|numeric|between:-180,180',
             'hoja_envases' => 'nullable|string|max:2000',
             'hoja_cuenta' => 'nullable|numeric|min:0',
             'hoja_saldo' => 'nullable|numeric|min:0',

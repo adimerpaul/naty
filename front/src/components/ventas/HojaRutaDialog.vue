@@ -55,10 +55,19 @@
               <q-separator class="q-mb-sm" />
               <div class="row items-center q-gutter-sm q-mb-sm">
                 <q-icon name="place" color="red-6" />
-                <span class="text-caption text-weight-medium">Ubicacion del cliente</span>
+                <span class="text-caption text-weight-medium">Ubicacion de entrega</span>
                 <q-space />
                 <q-btn
-                  v-if="tieneUbicacion"
+                  dense
+                  no-caps
+                  flat
+                  color="grey-8"
+                  icon="my_location"
+                  label="Usar mi ubicacion"
+                  size="sm"
+                  @click="usarUbicacionActual"
+                />
+                <q-btn
                   dense
                   no-caps
                   flat
@@ -78,33 +87,75 @@
                   size="sm"
                   @click="abrirGoogleMaps"
                 />
+                <q-btn
+                  dense
+                  no-caps
+                  unelevated
+                  color="positive"
+                  icon="chat"
+                  label="Compartir por WhatsApp"
+                  size="sm"
+                  @click="compartirWhatsapp"
+                />
               </div>
 
+              <div class="row q-col-gutter-sm q-mb-sm">
+                <div class="col-6">
+                  <q-input v-model.number="form.hoja_lat" type="number" step="0.0000001" dense outlined label="Latitud" />
+                </div>
+                <div class="col-6">
+                  <q-input v-model.number="form.hoja_lng" type="number" step="0.0000001" dense outlined label="Longitud" />
+                </div>
+              </div>
+
+              <div class="row items-center q-mb-xs">
+                <div class="text-caption text-grey-7">
+                  <q-icon name="touch_app" size="14px" /> Arrastra el marcador o haz clic en el mapa para fijar la ubicacion de entrega
+                  <span v-if="!tieneUbicacion"> (sin coordenadas guardadas — mostrando el centro de Oruro por defecto)</span>
+                </div>
+                <q-space />
+                <q-btn-toggle
+                  v-model="mapaCapa"
+                  dense
+                  no-caps
+                  unelevated
+                  size="sm"
+                  toggle-color="primary"
+                  color="grey-3"
+                  text-color="black"
+                  :options="[
+                    { label: 'Satelite', value: 's', icon: 'satellite_alt' },
+                    { label: 'Calle', value: 'm', icon: 'map' }
+                  ]"
+                />
+              </div>
               <l-map
-                v-if="tieneUbicacion"
-                style="height: 220px; width: 100%; border-radius: 8px;"
-                :zoom="16"
+                key="hoja-ruta-map"
+                style="height: 260px; width: 100%; border-radius: 8px;"
+                :zoom="tieneUbicacion ? 16 : 13"
                 :center="mapaCenter"
                 :use-global-leaflet="false"
+                @click="onMapClick"
               >
                 <l-tile-layer
-                  url="https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                  :key="mapaCapa"
+                  :url="`https://mt{s}.google.com/vt/lyrs=${mapaCapa}&x={x}&y={y}&z={z}`"
                   :subdomains="['0','1','2','3']"
                   :max-zoom="20"
                 />
-                <l-marker :lat-lng="mapaCenter">
+                <l-marker
+                  :lat-lng="mapaCenter"
+                  :draggable="true"
+                  @dragend="onMarkerDragEnd"
+                >
                   <l-popup>
                     <div style="min-width: 160px; text-align: center;">
                       <b>{{ venta.cliente_nombre }}</b><br>
-                      <span style="font-size:11px;">{{ Number(venta.cliente_lat).toFixed(6) }}, {{ Number(venta.cliente_lng).toFixed(6) }}</span>
+                      <span style="font-size:11px;">{{ mapaCenter[0].toFixed(6) }}, {{ mapaCenter[1].toFixed(6) }}</span>
                     </div>
                   </l-popup>
                 </l-marker>
               </l-map>
-              <div v-else class="text-caption text-grey-5 row items-center q-gutter-xs">
-                <q-icon name="place_off" />
-                <span>Sin coordenadas registradas — se buscara por direccion en Google Maps</span>
-              </div>
             </div>
           </div>
           <div class="row justify-end q-gutter-sm q-mt-md">
@@ -129,6 +180,8 @@ import { Imprimir } from 'src/addons/Imprimir'
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow })
 
+const ORURO_CENTER = [-17.9645186, -67.124877]
+
 export default {
   name: 'HojaRutaDialog',
   components: { LMap, LTileLayer, LMarker, LPopup },
@@ -147,6 +200,7 @@ export default {
     return {
       loading: false,
       venta: null,
+      mapaCapa: 's',
       turnoOptions: [
         { label: 'Mañana', value: 'mañana' },
         { label: 'Tarde', value: 'tarde' },
@@ -157,11 +211,12 @@ export default {
   },
   computed: {
     tieneUbicacion () {
-      return this.venta?.cliente_lat != null && this.venta?.cliente_lng != null &&
-        this.venta.cliente_lat !== '' && this.venta.cliente_lng !== ''
+      return this.form.hoja_lat != null && this.form.hoja_lng != null &&
+        this.form.hoja_lat !== '' && this.form.hoja_lng !== '' &&
+        !Number.isNaN(Number(this.form.hoja_lat)) && !Number.isNaN(Number(this.form.hoja_lng))
     },
     mapaCenter () {
-      return [Number(this.venta?.cliente_lat), Number(this.venta?.cliente_lng)]
+      return this.tieneUbicacion ? [Number(this.form.hoja_lat), Number(this.form.hoja_lng)] : ORURO_CENTER
     }
   },
   watch: {
@@ -178,6 +233,8 @@ export default {
         hoja_telefono_1: '',
         hoja_telefono_2: '',
         hoja_direccion: '',
+        hoja_lat: null,
+        hoja_lng: null,
         hoja_envases: '',
         hoja_cuenta: 0,
         hoja_saldo: 0,
@@ -200,7 +257,7 @@ export default {
     },
     buildForm (venta) {
       const fecha = venta.hoja_fecha_entrega || venta.fecha || new Date().toISOString().slice(0, 10)
-      const hora = venta.hoja_hora ? String(venta.hoja_hora).slice(0, 5) : (venta.hora ? String(venta.hora).slice(0, 5) : '')
+      const hora = venta.hoja_hora || (venta.hora ? String(venta.hora).slice(0, 5) : '')
       return {
         hoja_fecha_entrega: String(fecha).slice(0, 10),
         hoja_turno: venta.hoja_turno || 'mañana',
@@ -208,6 +265,8 @@ export default {
         hoja_telefono_1: venta.hoja_telefono_1 || venta.cliente_telefono || '',
         hoja_telefono_2: venta.hoja_telefono_2 || '',
         hoja_direccion: venta.hoja_direccion || venta.cliente_direccion || '',
+        hoja_lat: venta.hoja_lat ?? venta.cliente_lat ?? null,
+        hoja_lng: venta.hoja_lng ?? venta.cliente_lng ?? null,
         hoja_envases: venta.hoja_envases || this.envasesDefault(venta),
         hoja_cuenta: Number(venta.hoja_cuenta ?? venta.total_pagado ?? 0),
         hoja_saldo: Number(venta.hoja_saldo ?? venta.saldo_pendiente ?? venta.total ?? 0),
@@ -220,21 +279,54 @@ export default {
         .join(', ')
     },
     copiarCoordenadas () {
-      const texto = `${Number(this.venta.cliente_lat).toFixed(6)}, ${Number(this.venta.cliente_lng).toFixed(6)}`
+      const [lat, lng] = this.mapaCenter
+      const texto = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
       navigator.clipboard.writeText(texto).then(() => {
         this.$alert.success('Coordenadas copiadas: ' + texto)
       }).catch(() => {
         this.$alert.error('No se pudo copiar al portapapeles')
       })
     },
+    ubicacionUrl () {
+      const [lat, lng] = this.mapaCenter
+      return `https://www.google.com/maps?q=${lat.toFixed(7)},${lng.toFixed(7)}`
+    },
     abrirGoogleMaps () {
-      let url
-      if (this.tieneUbicacion) {
-        url = `https://www.google.com/maps?q=${Number(this.venta.cliente_lat).toFixed(7)},${Number(this.venta.cliente_lng).toFixed(7)}`
-      } else {
-        const dir = this.form.hoja_direccion || this.venta.cliente_direccion || this.venta.cliente_nombre || ''
-        url = `https://www.google.com/maps/search/${encodeURIComponent(dir)}`
+      window.open(this.ubicacionUrl(), '_blank', 'noopener')
+    },
+    setUbicacion (lat, lng) {
+      this.form.hoja_lat = Number(lat.toFixed(7))
+      this.form.hoja_lng = Number(lng.toFixed(7))
+    },
+    onMapClick (e) {
+      this.setUbicacion(e.latlng.lat, e.latlng.lng)
+    },
+    onMarkerDragEnd (e) {
+      const pos = e.target.getLatLng()
+      this.setUbicacion(pos.lat, pos.lng)
+    },
+    usarUbicacionActual () {
+      if (!navigator.geolocation) {
+        this.$alert.error('El navegador no soporta geolocalizacion')
+        return
       }
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          this.setUbicacion(pos.coords.latitude, pos.coords.longitude)
+          this.$alert.success('Ubicacion actual capturada')
+        },
+        () => {
+          this.$alert.error('No se pudo obtener la ubicacion actual')
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    },
+    compartirWhatsapp () {
+      const cliente = this.venta?.cliente_nombre || 'cliente'
+      const mensaje = `Hoja de ruta #${this.venta?.id} - ${cliente}\nUbicacion de entrega: ${this.ubicacionUrl()}`
+      const telefono = String(this.form.hoja_telefono_1 || '').replace(/\D/g, '')
+      const destino = telefono ? (telefono.startsWith('591') ? telefono : `591${telefono}`) : ''
+      const url = `https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`
       window.open(url, '_blank', 'noopener')
     },
     async guardarEImprimir () {
