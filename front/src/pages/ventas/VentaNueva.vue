@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row q-col-gutter-md">
-      <div class="col-12 col-lg-8">
+    <div class="row">
+      <div class="col-12 col-md-7">
         <q-card flat bordered>
           <q-card-section class="row items-center q-gutter-sm tipo-banner" :class="tipoThemeClass">
             <q-btn flat dense icon="arrow_back" no-caps label="Volver a ventas" @click="volverVentas" />
@@ -30,12 +30,12 @@
         </q-card>
 
         <div class="row q-col-gutter-xs q-mt-sm">
-          <div class="col-6 col-sm-4 col-md-2" v-for="p in productosFiltrados" :key="p.id">
+          <div class="col-4 col-sm-3 col-md-2" v-for="p in productosFiltrados" :key="p.id">
             <q-card class="cursor-pointer product-card" flat bordered @click="agregarProducto(p)" :style="{ borderColor: p.color || '#d7dbe0' }">
-              <q-img v-if="p.fotografia" :src="imgProducto(p.fotografia)" style="height: 72px" fit="cover">
+              <q-img v-if="p.fotografia" :src="imgProducto(p.fotografia)" style="height: 52px" fit="cover">
               </q-img>
-              <div v-else class="row items-center justify-center" style="height: 72px; background: #f4f5f7;">
-                <q-icon name="inventory_2" size="24px" color="grey-7" />
+              <div v-else class="row items-center justify-center" style="height: 52px; background: #f4f5f7;">
+                <q-icon name="inventory_2" size="20px" color="grey-7" />
               </div>
               <q-card-section class="q-pa-xs">
                 <div class="text-caption text-weight-medium ellipsis">{{ p.nombre }}</div>
@@ -51,52 +51,59 @@
         </div>
       </div>
 
-      <div class="col-12 col-lg-4">
+      <div class="col-12 col-md-5">
         <q-card flat bordered>
-          <q-card-section class="row items-center">
-            <div class="text-subtitle1 text-weight-bold">Carrito</div>
+          <q-card-section class="row items-center ">
+            <div class="text-body2 text-weight-bold">Carrito</div>
             <q-space />
-            <q-btn flat dense no-caps color="negative" icon="delete_sweep" label="Limpiar" @click="limpiarCarrito" :disable="!carrito.length" />
+            <q-btn flat dense no-caps size="sm" color="negative" icon="delete_sweep" label="Limpiar" @click="limpiarCarrito" :disable="!carrito.length" />
           </q-card-section>
           <q-separator />
-          <q-card-section class="q-pa-sm">
-            <q-list separator>
-              <q-item v-for="it in carrito" :key="it.uid" dense>
-                <q-item-section avatar>
-                  <q-avatar rounded size="38px">
-                    <q-img v-if="it.fotografia" :src="imgProducto(it.fotografia)" />
-                    <q-icon v-else :name="it.producto_id ? 'inventory_2' : 'receipt_long'" />
-                  </q-avatar>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>{{ it.nombre }}</q-item-label>
-                  <q-item-label caption>
-                    <div class="row q-col-gutter-xs">
-                      <div class="col-6">
-                        <q-input dense outlined type="number" v-model.number="it.precio" label="Precio" @update:model-value="recalcularItem(it)" />
-                      </div>
-                      <div class="col-6">
-                        <q-input dense outlined type="number" min="1" v-model.number="it.cantidad" label="Cant." @update:model-value="recalcularItem(it)" />
-                      </div>
-                    </div>
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <div class="text-weight-bold">{{ money(it.subtotal) }}</div>
-                  <q-btn dense flat round icon="delete" color="negative" @click="quitarItem(it.uid)" />
-                </q-item-section>
-              </q-item>
-            </q-list>
+          <q-card-section class="q-pa-none">
+            <q-markup-table dense flat class="cart-table">
+              <thead>
+                <tr>
+                  <th class="text-left">Producto</th>
+                  <th class="text-right">Cant.</th>
+                  <th class="text-right">Precio</th>
+                  <th class="text-right">Subtotal</th>
+                  <th style="width: 32px" />
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="it in carrito" :key="it.uid">
+                  <td class="text-left ellipsis" style="max-width: 1px">{{ it.nombre }}</td>
+                  <td class="text-right">
+                    <input
+                      type="number" min="1" style="width: 56px"
+                      v-model.number="it.cantidad"
+                      @update:model-value="recalcularItem(it)"
+                    />
+                  </td>
+                  <td class="text-right">
+                    <input
+                      type="number" style="width: 68px"
+                      v-model.number="it.precio"
+                      @update:model-value="recalcularItem(it)"
+                    />
+                  </td>
+                  <td class="text-right text-weight-bold">{{ money(it.subtotal) }}</td>
+                  <td class="text-center">
+                    <q-btn dense flat round size="sm" icon="delete" color="negative" @click="quitarItem(it.uid)" />
+                  </td>
+                </tr>
+              </tbody>
+            </q-markup-table>
           </q-card-section>
           <q-separator />
-          <q-card-section class="row items-center">
-            <div class="text-subtitle1 text-weight-bold">Total: {{ money(total) }} Bs</div>
+          <q-card-section class="row items-center q-py-xs">
+            <div class="text-body2 text-weight-bold">Total: {{ money(total) }} Bs</div>
           </q-card-section>
         </q-card>
 
-        <q-card flat bordered class="q-mt-md">
-          <q-card-section class="q-pb-sm">
-            <div class="text-subtitle1 text-weight-bold">Datos de la venta</div>
+        <q-card flat bordered class="q-mt-sm">
+          <q-card-section class="q-py-xs">
+            <div class="text-body2 text-weight-bold">Datos de la venta</div>
           </q-card-section>
           <q-separator />
           <q-card-section class="q-pa-sm">
@@ -154,7 +161,7 @@
 
               <q-separator class="q-my-xs" />
 
-              <q-markup-table dense flat bordered class="q-mt-sm">
+              <q-markup-table dense flat bordered class="q-mt-xs venta-totales-table">
                 <tbody>
                   <tr>
                     <td class="text-right text-weight-bold" style="width: 70%">Total</td>
@@ -173,14 +180,14 @@
                     <td class="text-right" :class="deuda > 0 ? 'text-orange-8' : 'text-positive text-weight-bold'">{{ money(montoPagado) }} Bs</td>
                   </tr>
                   <tr v-if="deuda > 0">
-                    <td class="text-right text-weight-bold text-negative">Deuda</td>
+                    <td class="text-right text-weight-bold text-negative">Saldo</td>
                     <td class="text-right text-weight-bold text-negative">{{ money(deuda) }} Bs</td>
                   </tr>
                 </tbody>
               </q-markup-table>
 
-              <div class="row justify-end q-gutter-sm q-mt-md">
-                <q-btn no-caps color="positive" icon="point_of_sale" label="Guardar venta" type="submit" :disable="!carrito.length" :loading="loadingGuardar" />
+              <div class="row justify-end q-gutter-sm q-mt-sm">
+                <q-btn dense no-caps color="positive" icon="point_of_sale" label="Guardar venta" type="submit" :disable="!carrito.length" :loading="loadingGuardar" />
               </div>
             </q-form>
           </q-card-section>
@@ -1202,6 +1209,24 @@ export default {
 .product-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 18px rgba(0,0,0,.1);
+}
+.cart-table :deep(td), .cart-table :deep(th) {
+  padding: 2px 6px;
+}
+.cart-table :deep(.q-field__control) {
+  height: 26px;
+  min-height: 26px;
+}
+.cart-table :deep(.q-field__marginal) {
+  height: 26px;
+}
+.cart-table :deep(.q-field__native) {
+  font-size: 12px;
+  padding: 0 4px;
+}
+.venta-totales-table :deep(td) {
+  padding: 2px 8px;
+  font-size: 12px;
 }
 .venta-date-input {
   width: 170px;
