@@ -950,10 +950,6 @@ export default {
         this.$alert.error('Debe ingresar el monto en efectivo o QR para registrar la venta')
         return
       }
-      if (ef > 0 && qr > 0 && Math.round((ef + qr) * 100) !== Math.round(this.total * 100)) {
-        this.$alert.error('Al usar efectivo y QR juntos el total debe cubrir el 100% del monto de la venta')
-        return
-      }
       this.dialogGarantiaAsk = true
     },
     async crearVenta () {
