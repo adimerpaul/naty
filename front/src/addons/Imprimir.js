@@ -1134,6 +1134,9 @@ Oruro</div>
           <tbody>${rows || '<tr><td colspan="3">Sin detalle</td></tr>'}</tbody>
         </table>
         <div class="strong">TOTAL: ${money(venta.total)} Bs</div>
+        ${Number(venta.monto_efectivo || 0) > 0 ? `<div class="row-line">Efectivo: ${money(venta.monto_efectivo)} Bs</div>` : ''}
+        ${Number(venta.monto_qr || 0) > 0 ? `<div class="row-line">QR: ${money(venta.monto_qr)} Bs</div>` : ''}
+        ${Number(venta.saldo_pendiente || 0) > 0 ? `<div class="row-line">Saldo: ${money(venta.saldo_pendiente)} Bs</div>` : ''}
         <div>Observacion: ${observacion}</div>
         ${materialTable}
         ${rowsPrestamo ? `

@@ -658,8 +658,12 @@ class VentaController extends Controller
     {
         $pagado = $venta->pagos->where('estado', 'PAGADO')->sum('monto');
         $deuda = $venta->pagos->where('estado', 'PENDIENTE')->sum('monto');
+        $efectivo = $venta->pagos->where('estado', 'PAGADO')->where('metodo', 'efectivo')->sum('monto');
+        $qr = $venta->pagos->where('estado', 'PAGADO')->where('metodo', 'qr')->sum('monto');
         $venta->setAttribute('total_pagado', round((float) $pagado, 2));
         $venta->setAttribute('saldo_pendiente', round((float) $deuda, 2));
+        $venta->setAttribute('monto_efectivo', round((float) $efectivo, 2));
+        $venta->setAttribute('monto_qr', round((float) $qr, 2));
         $venta->setAttribute('fecha', $venta->fecha_venta?->format('Y-m-d') ?: optional($venta->created_at)->format('Y-m-d'));
         $venta->setAttribute('hora', optional($venta->created_at)->format('H:i:s'));
         $prestamosCount = (int) ($venta->prestamos_count ?? ($venta->relationLoaded('prestamos') ? $venta->prestamos->count() : 0));
